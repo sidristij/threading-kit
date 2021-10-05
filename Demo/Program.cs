@@ -10,7 +10,7 @@ namespace Demo
     {
         static void Main(string[] args)
         {
-            // TestRegularPool();
+            TestRegularPool();
             
             TestSimplePool();
         }
@@ -19,7 +19,7 @@ namespace Demo
         {
             var sw = Stopwatch.StartNew();
             var @event = new CountdownEvent(100000);
-            for (int i = 0; i < 100000; i++)
+            for (var i = 0; i < 100000; i++)
             {
                 ThreadPool.QueueUserWorkItem((x) => { @event.Signal(); });
             }
@@ -34,7 +34,7 @@ namespace Demo
             var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic>();
             pool.InitializedWaitHandle.WaitOne();
             var sw = Stopwatch.StartNew();
-            for (int i = 0; i < 100000; i++)
+            for (var i = 0; i < 100000; i++)
             {
                 pool.Enqueue(_ => { @event.Signal(); });
             }

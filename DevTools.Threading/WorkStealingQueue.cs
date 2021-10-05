@@ -2,13 +2,14 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using DevTools.Threading.Abstractions;
 
 namespace DevTools.Threading
 {
     internal sealed class WorkStealingQueue
     {
         private const int INITIAL_SIZE = 32;
-        internal volatile object?[] m_array = new object[INITIAL_SIZE]; // SOS's ThreadPool command depends on this name
+        internal volatile UnitOfWork[] m_array = new UnitOfWork[INITIAL_SIZE]; // SOS's ThreadPool command depends on this name
         private volatile int m_mask = INITIAL_SIZE - 1;
  
 #if DEBUG
@@ -23,7 +24,7 @@ namespace DevTools.Threading
  
         private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
  
-        public void LocalPush(object obj)
+        public void LocalPush(UnitOfWork obj)
         {
             int tail = m_tailIndex;
  
@@ -54,7 +55,7 @@ namespace DevTools.Threading
                     if (count >= m_mask)
                     {
                         // We're full; expand the queue by doubling its size.
-                        var newArray = new object?[m_array.Length << 1];
+                        var newArray = new UnitOfWork[m_array.Length << 1];
                         for (int i = 0; i < m_array.Length; i++)
                             newArray[i] = m_array[(i + head) & m_mask];
  
@@ -111,12 +112,12 @@ namespace DevTools.Threading
             }
         }
  
-        public bool LocalFindAndPop(object obj)
+        public bool LocalFindAndPop(UnitOfWork obj)
         {
             // Fast path: check the tail. If equal, we can skip the lock.
             if (m_array[(m_tailIndex - 1) & m_mask] == obj)
             {
-                object? unused = LocalPop();
+                UnitOfWork? unused = LocalPop();
                 Debug.Assert(unused == null || unused == obj);
                 return unused != null;
             }
@@ -167,9 +168,9 @@ namespace DevTools.Threading
             return false;
         }
  
-        public object? LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
+        public UnitOfWork LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
  
-        private object? LocalPopCore()
+        private UnitOfWork LocalPopCore()
         {
             while (true)
             {
@@ -187,7 +188,7 @@ namespace DevTools.Threading
                 if (m_headIndex <= tail)
                 {
                     int idx = tail & m_mask;
-                    object? obj = Volatile.Read(ref m_array[idx]);
+                    var obj = Volatile.Read(ref m_array[idx]);
  
                     // Check for nulls in the array.
                     if (obj == null) continue;
@@ -207,7 +208,7 @@ namespace DevTools.Threading
                         {
                             // Element still available. Take it.
                             int idx = tail & m_mask;
-                            object? obj = Volatile.Read(ref m_array[idx]);
+                            var obj = Volatile.Read(ref m_array[idx]);
  
                             // Check for nulls in the array.
                             if (obj == null) continue;
@@ -233,7 +234,7 @@ namespace DevTools.Threading
  
         public bool CanSteal => m_headIndex < m_tailIndex;
  
-        public object? TrySteal(ref bool missedSteal)
+        public UnitOfWork TrySteal(ref bool missedSteal)
         {
             while (true)
             {
@@ -252,7 +253,7 @@ namespace DevTools.Threading
                             if (head < m_tailIndex)
                             {
                                 int idx = head & m_mask;
-                                object? obj = Volatile.Read(ref m_array[idx]);
+                                var obj = Volatile.Read(ref m_array[idx]);
  
                                 // Check for nulls in the array.
                                 if (obj == null) continue;

@@ -11,7 +11,7 @@ namespace DevTools.Threading
         where TThreadWrapperType : ExecutionSegmentLogicBase, new()
     {
         private const string ManagementSegmentName = "Management segment";
-        private readonly TQueueType _queue = new();
+        private readonly TQueueType _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
@@ -27,7 +27,7 @@ namespace DevTools.Threading
                     _segments.Add(threadSegment);
 
                     var segmentLogic = new TThreadWrapperType();
-                    segmentLogic.InitializeAndStart(this, _queue, threadSegment);
+                    segmentLogic.InitializeAndStart(this, _globalQueue, threadSegment);
                 }
                 _event.Set();
             });
@@ -40,13 +40,13 @@ namespace DevTools.Threading
         public void Enqueue(ExecutionUnit unit, object state = default)
         {
             var unitOfWork = Heap.Get<UnitOfWork>().Initialize(unit, ThreadPoolItemPriority.Default, state);
-            _queue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork);
         }
 
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
         {
             var unitOfWork = Heap.Get<UnitOfWork>().Initialize(unit, priority, state);
-            _queue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork);
         }
 
         public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)
@@ -67,9 +67,9 @@ namespace DevTools.Threading
             }; 
             
             var unitOfWork = Heap.Get<UnitOfWork>().Initialize(callback, ThreadPoolItemPriority.Default, wfsoState);
-            _queue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork);
         }
-
+        
         private class WaitForSingleObjectState
         {
             public object InternalState;

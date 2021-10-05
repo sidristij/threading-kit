@@ -6,22 +6,26 @@ namespace DevTools.Threading
     public abstract class ExecutionSegmentLogicBase
     {
         private IThreadPool _threadPool;
-        private IThreadPoolQueue _queue;
+        private IThreadPoolQueue _globalQueue;
         private IExecutionSegment _executionSegment;
         private ManualResetEvent _stoppedEvent;
 
         public virtual void InitializeAndStart(
             IThreadPool threadPool,
-            IThreadPoolQueue queue,
+            IThreadPoolQueue globalQueue,
             IExecutionSegment executionSegment)
         {
             _threadPool = threadPool;
-            _queue = queue;
+            _globalQueue = globalQueue;
             _executionSegment = executionSegment;
             _stoppedEvent = new ManualResetEvent(false);
             _executionSegment.SetExecutingUnit(ThreadWorker);
         }
 
+        protected IThreadPool ThreadPool => _threadPool;
+        protected IThreadPoolQueue ThreadPoolQueue => _globalQueue;
+        protected IExecutionSegment ExecutionSegment => _executionSegment;
+        
         private void ThreadWorker(object ctx)
         {
             // ...
@@ -33,7 +37,7 @@ namespace DevTools.Threading
             // work cycle
             while (true)
             {
-                if (_queue.TryDequeue(out var item))
+                if (_globalQueue.TryDequeue(out var item))
                 {
                     item.Run();
                 }

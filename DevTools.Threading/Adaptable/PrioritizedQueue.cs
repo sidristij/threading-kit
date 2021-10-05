@@ -17,9 +17,7 @@ namespace DevTools.Threading.Abstractions
             }
         }
 
-        public int Volume => _volume;
-
-        public void Enqueue(UnitOfWork unitOfWork)
+        public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal)
         {
             var priority = ThreadPoolItemPriority.Default;
             _queues[(int)priority].Enqueue(unitOfWork);
