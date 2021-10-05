@@ -1,45 +1,51 @@
+using System.Collections.Concurrent;
 using System.Threading;
-using DedicatedThreadPool.Exceptions;
+using DevTools.Threading.Abstractions;
+using DevTools.Threading.Exceptions;
 
-namespace DedicatedThreadPool
+namespace DevTools.Threading
 {
     /// <summary>
     /// Encapsulates thread, which can migrate btw pools with internal logic change via changing current executing delegate.
+    /// Should work in pair with ThreadWrapperBase, which have work for controllable Thread
     /// </summary>
-    internal class ControllableThread
+    internal class ExecutionSegment : IExecutionSegment
     {
         private static int _index = 0;
         private readonly Thread _thread;
-        private volatile ControllableThreadStatus _status = ControllableThreadStatus.Paused;
+        private volatile SegmentStatus _status = SegmentStatus.Paused;
         private volatile bool _stoppingRequested = false;
-        private volatile SendOrPostCallback _nextAction;
+        private volatile ConcurrentQueue<SendOrPostCallback> _nextActions = new();
         private readonly AutoResetEvent _event;
         private ManualResetEvent _stoppingEvent;
 
-        public ControllableThread()
+        public ExecutionSegment(string segmentName = default)
         {
             _thread = new Thread(ThreadWork);
-            _thread.Name = $"{nameof(ControllableThread)} #{++_index}";
+            _thread.Name = segmentName ?? $"{nameof(ExecutionSegment)} #{++_index}";
             _event = new AutoResetEvent(false);
             _thread.Start();
         }
 
-        public ControllableThreadStatus Status => _status;
+        public SegmentStatus Status => _status;
 
         /// <summary>
         /// Sets currently running delegate if previous one finished or plans for execution if prev one isn't finished yet 
         /// </summary>
-        public void SetRunningDelegate(SendOrPostCallback callback)
+        public void SetExecutingUnit(SendOrPostCallback callback)
         {
-            if (_status == ControllableThreadStatus.Stopped)
+            if (_status == SegmentStatus.Stopped)
             {
                 throw new ThreadPoolException("Cannot set next action to the not running thread");
             }
-            if (_nextAction != default || Interlocked.CompareExchange(ref _nextAction, callback, null) != null)
+            
+            _nextActions.Enqueue(callback);
+
+            // if status is still Paused, knock it 
+            if (_status == SegmentStatus.Paused)
             {
-                throw new ThreadPoolException("Cannot set next action to be queued into controlled thread because it supports only one next action");
+                _event.Set();
             }
-            _event.Set();
         }
 
         public void RequestThreadStop()
@@ -62,13 +68,13 @@ namespace DedicatedThreadPool
         {
             while (_stoppingRequested == false)
             {
-                if (_nextAction != null)
+                if (_nextActions.TryDequeue(out var callback))
                 {
-                    _status = ControllableThreadStatus.Running;
+                    _status = SegmentStatus.Running;
                     
-                    _nextAction.Invoke(default);
+                    callback.Invoke(default);
                     
-                    _status = ControllableThreadStatus.Paused;
+                    _status = SegmentStatus.Paused;
                 }
                 else
                 {
@@ -82,14 +88,7 @@ namespace DedicatedThreadPool
                 _stoppingEvent.Set();
             }
 
-            _status = ControllableThreadStatus.Stopped;
+            _status = SegmentStatus.Stopped;
         }
-    }
-
-    internal enum ControllableThreadStatus
-    {
-        Running,
-        Paused,
-        Stopped
     }
 }

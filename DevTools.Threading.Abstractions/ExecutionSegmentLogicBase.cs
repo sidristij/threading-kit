@@ -1,34 +1,29 @@
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
-using DedicatedThreadPool.Jobs;
+using DevTools.Threading.Abstractions;
 
-namespace DedicatedThreadPool
+namespace DevTools.Threading
 {
-    public abstract class ThreadWrapperBase
+    public abstract class ExecutionSegmentLogicBase
     {
-        private readonly AdaptableThreadPool _threadPool;
-        private readonly ManualResetEvent _stoppedEvent;
-        private readonly Queue<UnitOfWork> _queue = new(128);
-        private readonly CyclicQueue<long> _timings = new(8);
-        private Thread _thread;
+        private IThreadPool _threadPool;
+        private IThreadPoolQueue _queue;
+        private IExecutionSegment _executionSegment;
+        private ManualResetEvent _stoppedEvent;
 
-        public ThreadWrapperBase(AdaptableThreadPool threadPool)
+        public virtual void InitializeAndStart(
+            IThreadPool threadPool,
+            IThreadPoolQueue queue,
+            IExecutionSegment executionSegment)
         {
             _threadPool = threadPool;
+            _queue = queue;
+            _executionSegment = executionSegment;
             _stoppedEvent = new ManualResetEvent(false);
-            _thread = new Thread(ThreadWorker);
+            _executionSegment.SetExecutingUnit(ThreadWorker);
         }
 
-        public void ReInitialize()
+        private void ThreadWorker(object ctx)
         {
-            
-        }
-
-        private void ThreadWorker()
-        {
-            var stopwatch = Stopwatch.StartNew();
-            
             // ...
             SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
             
@@ -40,12 +35,7 @@ namespace DedicatedThreadPool
             {
                 if (_queue.TryDequeue(out var item))
                 {
-                    stopwatch.Restart();
-                    
                     item.Run();
-                    
-                    stopwatch.Stop();
-                    _timings.Add(stopwatch.ElapsedMilliseconds);
                 }
             }
             
@@ -67,8 +57,7 @@ namespace DedicatedThreadPool
         
         protected abstract void OnThreadStopping();
         
-        
-        internal abstract void OnThreadGotWork();
+        protected abstract void OnWorkArrived();
         
         protected abstract void OnThreadPaused();
     }

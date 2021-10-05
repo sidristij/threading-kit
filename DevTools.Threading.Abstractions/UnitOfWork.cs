@@ -1,28 +1,29 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
 
-namespace DedicatedThreadPool.Jobs
+namespace DevTools.Threading.Abstractions
 {
     /// <summary>
     /// Wrapper for unit of work for scheduling into dedicated thread pool 
     /// </summary>
-    internal struct UnitOfWork
+    public class UnitOfWork
     {
-        private object _ostate;
-        private SendOrPostCallback _action;
+        private object _unitState;
+        private ExecutionUnit _unit;
         private Exception _exception;
         private UnitOfWorkState _state;
 
-        public UnitOfWork([NotNull] SendOrPostCallback action, [NotNull] object state)
+        public UnitOfWork Initialize([NotNull] ExecutionUnit unit, ThreadPoolItemPriority priority, [NotNull] object state)
         {
-            _action = action;
+            _unit = unit;
             _exception = null;
-            _ostate = state;
+            _unitState = state;
             _state = UnitOfWorkState.Waiting;
+            return this;
         }
 
         public Exception Error => _exception;
+        
         public UnitOfWorkState State => _state;  
 
         public void Run()
@@ -30,7 +31,7 @@ namespace DedicatedThreadPool.Jobs
             try
             {
                 _state = UnitOfWorkState.Running;
-                _action.Invoke(_ostate);
+                _unit.Invoke(_unitState);
                 _state = UnitOfWorkState.Finished;
             }
             catch (Exception exception)

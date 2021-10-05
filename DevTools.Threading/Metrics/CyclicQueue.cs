@@ -1,4 +1,4 @@
-namespace DedicatedThreadPool
+namespace DevTools.Threading
 {
     internal class CyclicQueue<T>
     {

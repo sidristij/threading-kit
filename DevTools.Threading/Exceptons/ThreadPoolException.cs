@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DedicatedThreadPool.Exceptions
+namespace DevTools.Threading.Exceptions
 {
     public class ThreadPoolException : Exception
     {

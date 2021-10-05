@@ -1,6 +1,6 @@
-namespace DedicatedThreadPool
+namespace DevTools.Threading
 {
-    internal enum UnitOfWorkState
+    public enum UnitOfWorkState
     {
         Waiting = 0,
         Running,

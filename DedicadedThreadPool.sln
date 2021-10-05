@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools.Threading.DedicatedThreadPool", "DevTools.Threading.DedicatedThreadPool\DevTools.Threading.DedicatedThreadPool.csproj", "{478E443B-6812-40C5-A089-7CD6F31A0A02}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools.Threading", "DevTools.Threading\DevTools.Threading.csproj", "{478E443B-6812-40C5-A089-7CD6F31A0A02}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{B527396C-68B9-411E-B525-C4C0A9D73D2D}"
 EndProject

@@ -7,8 +7,10 @@ namespace DevTools.Threading.Abstractions
     {
         SynchronizationContext SynchronizationContext { get; }
         
-        void Enqueue(SendOrPostCallback action, object state = default);
+        void Enqueue(ExecutionUnit unit, object state = default);
+        
+        void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default);
 
-        void RegisterWaitForSingleObject(WaitHandle handle, SendOrPostCallback action, object state = default, TimeSpan timeout = default);
+        void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default);
     }
 }
