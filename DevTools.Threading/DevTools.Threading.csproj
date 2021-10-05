@@ -6,11 +6,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DevTools.Threading.Abstractions\DevTools.Threading.Abstractions.csproj" />
+      <Folder Include="Jobs" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Jobs" />
+      <PackageReference Include="DevTools.MemoryPools" Version="1.1.0.5" />
     </ItemGroup>
 
 </Project>

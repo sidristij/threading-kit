@@ -1,15 +1,23 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 
-namespace DevTools.Threading.Abstractions
+namespace DevTools.Threading
 {
-    public class SimpleQueue : IThreadPoolQueue, IWorkStealingQueueListProvider
+    public class SimpleQueue : IThreadPoolQueue, IThreadPoolInternalData
     {
+        private const int MaxSemaphoreVolume = 0x7ff;
         private readonly ConcurrentQueue<UnitOfWork> _workQueue = new();
         private readonly WorkStealingQueueList _stealingQueue = new();
-
-        WorkStealingQueueList IWorkStealingQueueListProvider.QueueList => _stealingQueue;
         
+        // create with 4 threads allowed to run
+        private readonly SemaphoreSlim _semaphore = new(MaxSemaphoreVolume - 4, MaxSemaphoreVolume);
+        private volatile int enqueueCount = 0;
+        
+        WorkStealingQueueList IThreadPoolInternalData.QueueList => _stealingQueue;
+
+        public int GlobalCount => _workQueue.Count;
+
         public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal)
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
@@ -22,15 +30,15 @@ namespace DevTools.Threading.Abstractions
             }
             else
             {
-                _workQueue.Enqueue(unitOfWork);   
+                _workQueue.Enqueue(unitOfWork);
             }
         }
 
-        public bool TryDequeue(out UnitOfWork unitOfWork)
+        public UnitOfWork Dequeue(ref bool missedSteal)
         {
+            UnitOfWork unitOfWork;
             var tl = ThreadPoolWorkQueueThreadLocals.instance;
             var localWsq = tl.workStealingQueue;
-            var missedSteal = false;
             
             if ((unitOfWork = tl.workStealingQueue.LocalPop()) == null && !_workQueue.TryDequeue(out unitOfWork))
             {
@@ -48,16 +56,14 @@ namespace DevTools.Threading.Abstractions
                         unitOfWork = otherQueue.TrySteal(ref missedSteal);
                         if (unitOfWork != null)
                         {
-                            return true;
+                            return unitOfWork;
                         }
                     }
                     c--;
                 }
-
-                return false;
             }
 
-            return true;
+            return unitOfWork;
         }
     }
 }

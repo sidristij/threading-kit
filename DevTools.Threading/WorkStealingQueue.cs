@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using DevTools.Threading.Abstractions;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {

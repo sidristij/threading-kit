@@ -1,6 +1,6 @@
 ﻿using System.Threading;
 
-namespace DevTools.Threading.Abstractions
+namespace DevTools.Threading
 {
     public interface IExecutionSegment
     {

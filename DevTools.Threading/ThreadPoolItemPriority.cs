@@ -1,4 +1,4 @@
-namespace DevTools.Threading.Abstractions
+namespace DevTools.Threading
 {
     public enum ThreadPoolItemPriority
     {

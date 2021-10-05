@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using DevTools.Threading;
-using DevTools.Threading.Abstractions;
+using DevTools.Threading;
 
 namespace Demo
 {

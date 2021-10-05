@@ -1,5 +1,5 @@
 using System.Threading;
-using DevTools.Threading.Abstractions;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {

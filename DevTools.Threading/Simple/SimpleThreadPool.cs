@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using DevTools.MemoryPools;
-using DevTools.Threading.Abstractions;
 
 namespace DevTools.Threading
 {
@@ -27,7 +26,8 @@ namespace DevTools.Threading
                     _segments.Add(threadSegment);
 
                     var segmentLogic = new TThreadWrapperType();
-                    segmentLogic.InitializeAndStart(this, _globalQueue, threadSegment);
+                    var strategy = new SimpleThreadPoolThreadLifetimeStrategy();
+                    segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
                 }
                 _event.Set();
             });

@@ -1,6 +1,6 @@
 ﻿namespace DevTools.Threading
 {
-    internal interface IWorkStealingQueueListProvider
+    internal interface IThreadPoolInternalData
     {
         WorkStealingQueueList QueueList { get; }         
     }

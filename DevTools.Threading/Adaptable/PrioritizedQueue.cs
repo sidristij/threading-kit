@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace DevTools.Threading.Abstractions
+namespace DevTools.Threading
 {
     public class PrioritizedQueue : IThreadPoolQueue
     {
@@ -17,6 +17,8 @@ namespace DevTools.Threading.Abstractions
             }
         }
 
+        public int GlobalCount => _volume;
+
         public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal)
         {
             var priority = ThreadPoolItemPriority.Default;
@@ -24,19 +26,18 @@ namespace DevTools.Threading.Abstractions
             Interlocked.Increment(ref _volume);
         }
 
-        public bool TryDequeue(out UnitOfWork unitOfWork)
+        public UnitOfWork Dequeue(ref bool missedSteal)
         {
             for (int i = (int)ThreadPoolItemPriority.RangeStart; i < (int)ThreadPoolItemPriority.RangeEnd; i++)
             {
-                if (_queues[i].TryDequeue(out unitOfWork))
+                if (_queues[i].TryDequeue(out var unitOfWork))
                 {
                     Interlocked.Decrement(ref _volume);
-                    return true;
+                    return unitOfWork;
                 }
             }
 
-            unitOfWork = default;
-            return false;
+            return default;
         }
     }
 }

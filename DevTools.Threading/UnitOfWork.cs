@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace DevTools.Threading.Abstractions
+namespace DevTools.Threading
 {
     /// <summary>
     /// Wrapper for unit of work for scheduling into dedicated thread pool 
