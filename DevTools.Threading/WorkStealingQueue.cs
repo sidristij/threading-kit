@@ -117,7 +117,7 @@ namespace DevTools.Threading
             // Fast path: check the tail. If equal, we can skip the lock.
             if (m_array[(m_tailIndex - 1) & m_mask] == obj)
             {
-                UnitOfWork? unused = LocalPop();
+                UnitOfWork unused = LocalPop();
                 Debug.Assert(unused == null || unused == obj);
                 return unused != null;
             }
@@ -168,7 +168,7 @@ namespace DevTools.Threading
             return false;
         }
  
-        public UnitOfWork LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
+        public UnitOfWork LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : default;
  
         private UnitOfWork LocalPopCore()
         {
@@ -177,7 +177,7 @@ namespace DevTools.Threading
                 int tail = m_tailIndex;
                 if (m_headIndex >= tail)
                 {
-                    return null;
+                    return default;
                 }
  
                 // Decrement the tail using a fence to ensure subsequent read doesn't come before.
@@ -191,9 +191,9 @@ namespace DevTools.Threading
                     var obj = Volatile.Read(ref m_array[idx]);
  
                     // Check for nulls in the array.
-                    if (obj == null) continue;
+                    if (obj == default) continue;
  
-                    m_array[idx] = null;
+                    m_array[idx] = default;
                     return obj;
                 }
                 else
@@ -211,16 +211,16 @@ namespace DevTools.Threading
                             var obj = Volatile.Read(ref m_array[idx]);
  
                             // Check for nulls in the array.
-                            if (obj == null) continue;
+                            if (obj == default) continue;
  
-                            m_array[idx] = null;
+                            m_array[idx] = default;
                             return obj;
                         }
                         else
                         {
                             // If we encountered a race condition and element was stolen, restore the tail.
                             m_tailIndex = tail + 1;
-                            return null;
+                            return default;
                         }
                     }
                     finally
@@ -256,9 +256,9 @@ namespace DevTools.Threading
                                 var obj = Volatile.Read(ref m_array[idx]);
  
                                 // Check for nulls in the array.
-                                if (obj == null) continue;
+                                if (obj == default) continue;
  
-                                m_array[idx] = null;
+                                m_array[idx] = default;
                                 return obj;
                             }
                             else
@@ -277,7 +277,7 @@ namespace DevTools.Threading
                     missedSteal = true;
                 }
  
-                return null;
+                return default;
             }
         }
  

@@ -120,7 +120,7 @@ namespace DevTools.Threading
                 var missedSteal = false;
                 workItem = workQueue.Dequeue(ref missedSteal);
 
-                if (workItem == null)
+                if (workItem == default)
                 {
                     //
                     // No work.

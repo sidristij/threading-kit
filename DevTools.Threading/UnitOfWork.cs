@@ -12,19 +12,24 @@ namespace DevTools.Threading
         private ExecutionUnit _unit;
         private Exception _exception;
         private UnitOfWorkState _state;
+        internal long ScheduledAt;
 
-        public UnitOfWork Initialize([NotNull] ExecutionUnit unit, ThreadPoolItemPriority priority, [NotNull] object state)
+        public UnitOfWork()
+        {
+            
+        }
+        
+        public UnitOfWork([NotNull] ExecutionUnit unit, ThreadPoolItemPriority priority, [NotNull] object state)
         {
             _unit = unit;
             _exception = null;
             _unitState = state;
             _state = UnitOfWorkState.Waiting;
-            return this;
         }
 
         public Exception Error => _exception;
         
-        public UnitOfWorkState State => _state;  
+        public UnitOfWorkState State => _state;
 
         public void Run()
         {
