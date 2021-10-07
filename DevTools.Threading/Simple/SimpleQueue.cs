@@ -34,8 +34,6 @@ namespace DevTools.Threading
                 _workQueue.Enqueue(unitOfWork);
                 Interlocked.Increment(ref _parallelCounter);
             }
-
-            unitOfWork.ScheduledAt = Environment.TickCount64;
         }
 
         public UnitOfWork Dequeue(ref bool missedSteal)
@@ -44,7 +42,7 @@ namespace DevTools.Threading
             var tl = ThreadPoolWorkQueueThreadLocals.instance;
             var localWsq = tl.workStealingQueue;
 
-            if ((unitOfWork = tl.workStealingQueue.LocalPop()) == default)
+            if ((unitOfWork = tl.workStealingQueue.LocalPop()).InternalObjectIndex == 0)
             {
                 if (!_workQueue.TryDequeue(out unitOfWork))
                 {
@@ -62,7 +60,7 @@ namespace DevTools.Threading
                         if (otherQueue != localWsq && otherQueue.CanSteal)
                         {
                             unitOfWork = otherQueue.TrySteal(ref missedSteal);
-                            if (unitOfWork != null)
+                            if (unitOfWork.InternalObjectIndex != 0)
                             {
                                 return unitOfWork;
                             }

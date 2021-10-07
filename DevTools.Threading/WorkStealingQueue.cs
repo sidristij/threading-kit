@@ -37,7 +37,7 @@ namespace DevTools.Threading
             // When there are at least 2 elements' worth of space, we can take the fast path.
             if (tail < m_headIndex + m_mask)
             {
-                Volatile.Write(ref m_array[tail & m_mask], obj);
+                m_array[tail & m_mask] = obj;
                 m_tailIndex = tail + 1;
             }
             else
@@ -66,7 +66,7 @@ namespace DevTools.Threading
                         m_mask = (m_mask << 1) | 1;
                     }
  
-                    Volatile.Write(ref m_array[tail & m_mask], obj);
+                    m_array[tail & m_mask] = obj;
                     m_tailIndex = tail + 1;
                 }
                 finally
@@ -115,11 +115,10 @@ namespace DevTools.Threading
         public bool LocalFindAndPop(UnitOfWork obj)
         {
             // Fast path: check the tail. If equal, we can skip the lock.
-            if (m_array[(m_tailIndex - 1) & m_mask] == obj)
+            if (m_array[(m_tailIndex - 1) & m_mask].InternalObjectIndex == obj.InternalObjectIndex)
             {
                 UnitOfWork unused = LocalPop();
-                Debug.Assert(unused == null || unused == obj);
-                return unused != null;
+                return unused.InternalObjectIndex != 0;
             }
  
             // Else, do an O(N) search for the work item. The theory of work stealing and our
@@ -132,7 +131,7 @@ namespace DevTools.Threading
             // the work item, we are about to block anyway (which is very expensive).
             for (int i = m_tailIndex - 2; i >= m_headIndex; i--)
             {
-                if (m_array[i & m_mask] == obj)
+                if (m_array[i & m_mask].InternalObjectIndex == obj.InternalObjectIndex)
                 {
                     // If we found the element, block out steals to avoid interference.
                     bool lockTaken = false;
@@ -141,11 +140,11 @@ namespace DevTools.Threading
                         m_foreignLock.Enter(ref lockTaken);
  
                         // If we encountered a race condition, bail.
-                        if (m_array[i & m_mask] == null)
+                        if (m_array[i & m_mask].InternalObjectIndex == 0)
                             return false;
  
                         // Otherwise, null out the element.
-                        Volatile.Write(ref m_array[i & m_mask], null);
+                        m_array[i & m_mask] = default;
  
                         // And then check to see if we can fix up the indexes (if we're at
                         // the edge).  If we can't, we just leave nulls in the array and they'll
@@ -188,10 +187,10 @@ namespace DevTools.Threading
                 if (m_headIndex <= tail)
                 {
                     int idx = tail & m_mask;
-                    var obj = Volatile.Read(ref m_array[idx]);
+                    var obj = m_array[idx];
  
                     // Check for nulls in the array.
-                    if (obj == default) continue;
+                    if (obj.InternalObjectIndex == 0) continue;
  
                     m_array[idx] = default;
                     return obj;
@@ -208,10 +207,10 @@ namespace DevTools.Threading
                         {
                             // Element still available. Take it.
                             int idx = tail & m_mask;
-                            var obj = Volatile.Read(ref m_array[idx]);
+                            var obj = m_array[idx];
  
                             // Check for nulls in the array.
-                            if (obj == default) continue;
+                            if (obj.InternalObjectIndex == 0) continue;
  
                             m_array[idx] = default;
                             return obj;
@@ -253,10 +252,10 @@ namespace DevTools.Threading
                             if (head < m_tailIndex)
                             {
                                 int idx = head & m_mask;
-                                var obj = Volatile.Read(ref m_array[idx]);
+                                var obj = m_array[idx];
  
                                 // Check for nulls in the array.
-                                if (obj == default) continue;
+                                if (obj.InternalObjectIndex == 0) continue;
  
                                 m_array[idx] = default;
                                 return obj;

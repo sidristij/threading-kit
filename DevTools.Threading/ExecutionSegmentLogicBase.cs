@@ -106,7 +106,7 @@ namespace DevTools.Threading
                 var missedSteal = false;
                 workItem = workQueue.Dequeue(ref missedSteal);
 
-                if (workItem == default)
+                if (workItem.InternalObjectIndex == 0)
                 {
                     hasWork = false;
                     
@@ -129,12 +129,12 @@ namespace DevTools.Threading
             //
             while (true)
             {
-                if (workItem == null)
+                if (workItem.InternalObjectIndex == 0)
                 {
                     bool missedSteal = false;
                     workItem = workQueue.Dequeue(ref missedSteal);
 
-                    if (workItem == null)
+                    if (workItem.InternalObjectIndex == 0)
                     {
                         if (missedSteal)
                         {
@@ -149,7 +149,7 @@ namespace DevTools.Threading
 
                 workItem.Run();
                 unitsOfWorkCounter++;
-                workItem = null;
+                workItem = default;
 
                 if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, sw.Elapsed.TotalMilliseconds) == false)
                 {
