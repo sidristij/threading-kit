@@ -76,9 +76,7 @@ namespace DevTools.Threading
                 if (_nextActions.TryDequeue(out var callback))
                 {
                     _status = SegmentStatus.Running;
-                    var context = ExecutionContext.Capture();
                     callback.Invoke(default);
-                    ExecutionContext.Restore(context);
                     _status = SegmentStatus.Paused;
                 }
                 else

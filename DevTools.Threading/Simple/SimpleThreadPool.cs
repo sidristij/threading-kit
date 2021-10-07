@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -14,6 +15,7 @@ namespace DevTools.Threading
         private readonly TQueueType _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
+        private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
         private readonly IThreadPoolLifetimeStrategy _globalStrategy;
         private volatile int _threadsCounter = 0;
@@ -44,7 +46,7 @@ namespace DevTools.Threading
             {
                 if (CreateAdditionalThreadImpl())
                 {
-                    Console.WriteLine($"Created additional thread #{_segments.Count}");
+                    ; // log
                 }
             });
             return true;
@@ -57,8 +59,7 @@ namespace DevTools.Threading
                 if (_segments.Count > MinAllowedThreads)
                 {
                     _segments.Remove(segment);
-                    
-                    // allow action
+                    _parkedSegments.Enqueue(segment);
                     return true;
                 }
             }
@@ -102,15 +103,23 @@ namespace DevTools.Threading
         
         private bool CreateAdditionalThreadImpl()
         {
-            ExecutionSegment threadSegment = default;
-            
-            lock (_segments)
+            IExecutionSegment threadSegment = default;
+
+            if (_parkedSegments.TryDequeue(out var parked))
             {
-                if (_segments.Count < MaxAllowedThreads)
+                _segments.Add(parked);
+                threadSegment = parked;
+            }
+            else
+            {
+                lock (_segments)
                 {
-                    var index = Interlocked.Increment(ref _threadsCounter);
-                    threadSegment = new ExecutionSegment($"{ManagementSegmentName}: #{index}");
-                    _segments.Add(threadSegment);
+                    if (_segments.Count < MaxAllowedThreads)
+                    {
+                        var index = Interlocked.Increment(ref _threadsCounter);
+                        threadSegment = new ExecutionSegment($"{ManagementSegmentName}: #{index}");
+                        _segments.Add(threadSegment);
+                    }
                 }
             }
 

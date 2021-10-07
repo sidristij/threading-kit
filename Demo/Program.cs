@@ -16,9 +16,9 @@ namespace Demo
 
             TestSimplePool(pool);
 
-            // Console.ReadKey();
-            //
-            // TestSimplePool(pool);
+            Console.ReadKey();
+            
+            TestSimplePool(pool);
             
             Console.WriteLine("done");
         }
@@ -38,9 +38,9 @@ namespace Demo
 
         private static void TestSimplePool(IThreadPool pool)
         {
-            var @event = new CountdownEvent(1000000);
+            var @event = new CountdownEvent(1_000_000);
             var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 1000000; i++)
+            for (var i = 0; i < 1_000_000; i++)
             {
                 pool.Enqueue(_ =>
                 {

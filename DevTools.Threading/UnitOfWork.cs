@@ -25,9 +25,7 @@ namespace DevTools.Threading
         {
             try
             {
-                var copy = ExecutionContext.Capture();
                 _unit.Invoke(_unitState);
-                ExecutionContext.Restore(copy);
             }
             catch (Exception _)
             {

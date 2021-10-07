@@ -70,6 +70,7 @@ namespace DevTools.Threading
             OnStopping();
 
             _stoppedEvent.Set();
+            _stoppedEvent.Dispose();
         }
 
         protected abstract void OnStarted();
