@@ -11,7 +11,9 @@ namespace DevTools.Threading
     /// </summary>
     internal class ExecutionSegment : IExecutionSegment
     {
-        private static int _index = 0;
+        private readonly string _segmentName;
+        private static int _counter = 1;
+        private int _index = 1;
         private readonly Thread _thread;
         private volatile SegmentStatus _status = SegmentStatus.Paused;
         private volatile bool _stoppingRequested = false;
@@ -21,8 +23,11 @@ namespace DevTools.Threading
 
         public ExecutionSegment(string segmentName = default)
         {
+            _segmentName = segmentName;
+            _index = Interlocked.Increment(ref _counter);
             _thread = new Thread(ThreadWork);
-            _thread.Name = segmentName ?? $"{nameof(ExecutionSegment)} #{++_index}";
+            _thread.IsBackground = true;
+            _thread.Name = BuildName();
             _event = new AutoResetEvent(false);
             _thread.Start();
         }
@@ -71,9 +76,9 @@ namespace DevTools.Threading
                 if (_nextActions.TryDequeue(out var callback))
                 {
                     _status = SegmentStatus.Running;
-                    
+                    var context = ExecutionContext.Capture();
                     callback.Invoke(default);
-                    
+                    ExecutionContext.Restore(context);
                     _status = SegmentStatus.Paused;
                 }
                 else
@@ -89,6 +94,11 @@ namespace DevTools.Threading
             }
 
             _status = SegmentStatus.Stopped;
+        }
+
+        private string BuildName()
+        {
+            return _segmentName ?? $"{nameof(ExecutionSegment)} #{_index}";
         }
     }
 }

@@ -7,10 +7,12 @@ namespace DevTools.Threading
         private readonly Wrapper[] _array;
         private volatile int _pos = 0;
         private int _first = 1;
+        private readonly int _length;
 
         public CyclicQueue(int capacity)
         {
             _array = new Wrapper[capacity];
+            _length = capacity;
         }
         
         public T this[int i] => _array[i].Value;
@@ -25,14 +27,26 @@ namespace DevTools.Threading
                 Interlocked.Increment(ref _pos);
                 
                 // looks dangerous in parallel, but setting first value isn't so important
-                for (int i = 0, len = _array.Length; i < len; i++)
+                for (int i = 0, len = _length; i < len; i++)
                 {
                     _array[i].Value = value;
                 }
             }
             else
             {
-                var index = Interlocked.Increment(ref _pos);
+                var curpos = _pos;
+                int index;
+                if (curpos == _length - 1)
+                {
+                    if (Interlocked.CompareExchange(ref _pos, 0, _length - 1) == _length - 1)
+                    {
+                        _array[0].Value = value;
+                        return;
+                    }
+                }
+
+                index = Interlocked.Increment(ref _pos);
+                
                 _array[index % _array.Length].Value = value;
             }
         }

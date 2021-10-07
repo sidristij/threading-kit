@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using DevTools.Threading;
 
 namespace DevTools.Threading
 {

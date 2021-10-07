@@ -2,18 +2,14 @@
 {
     public abstract class SimplifiedLogicBase : ExecutionSegmentLogicBase
     {
-        protected override void OnThreadStarted()
+        protected override void OnStarted()
         {
             // ;
         }
 
-        protected override void OnThreadStopping()
+        protected override void OnStopping()
         {
             // ;
-        }
-
-        protected override void OnThreadPaused()
-        {
         }
     }
 }

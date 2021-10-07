@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Threading;
 
@@ -9,11 +10,12 @@ namespace DevTools.Threading
         private const int MinIntervalBetweenStops = 500; // ms
         private const int MinIntervalBetweenStarts = 200; // ms
         
-        private readonly CyclicQueue<double> _valuableIntervals = new(10);
+        private readonly CyclicQueue<double> _valuableIntervals = new(8);
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 
         private Stopwatch LastStopBreakpoint = Stopwatch.StartNew();
         private Stopwatch LastStartBreakpoint = Stopwatch.StartNew();
+        private SpinLock _threadCreationLock = new SpinLock();
 
         public SimpleThreadPoolLifetimeStrategy(IThreadPoolThreadsManagement threadsManagement)
         {
@@ -64,8 +66,26 @@ namespace DevTools.Threading
 
                 if (timeToExecute > MinIntervalToStartWorkitem)
                 {
-                    _threadsManagement.CreateAdditionalThread();
-                    LastStartBreakpoint.Restart();
+                    var locked = false;
+                    _threadCreationLock.TryEnter(ref locked);
+                    try
+                    {
+                        if (locked)
+                        {
+                            if (_threadsManagement.CreateAdditionalExecutionSegment())
+                            {
+                                Interlocked.Exchange(ref _workitemsDoneFromLastStart, 0);
+                                LastStartBreakpoint.Restart();
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (locked)
+                        {
+                            _threadCreationLock.Exit();
+                        }
+                    }
                 }
             }
         }

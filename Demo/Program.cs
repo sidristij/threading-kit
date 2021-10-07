@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Threading;
 using DevTools.Threading;
-using DevTools.Threading;
 
 namespace Demo
 {
@@ -17,9 +16,9 @@ namespace Demo
 
             TestSimplePool(pool);
 
-            Console.ReadKey();
-
-            TestSimplePool(pool);
+            // Console.ReadKey();
+            //
+            // TestSimplePool(pool);
             
             Console.WriteLine("done");
         }
@@ -27,8 +26,8 @@ namespace Demo
         private static void TestRegularPool()
         {
             var sw = Stopwatch.StartNew();
-            var @event = new CountdownEvent(100000);
-            for (var i = 0; i < 100000; i++)
+            var @event = new CountdownEvent(1000000);
+            for (var i = 0; i < 1000000; i++)
             {
                 ThreadPool.QueueUserWorkItem((x) => { @event.Signal(); });
             }
@@ -39,13 +38,12 @@ namespace Demo
 
         private static void TestSimplePool(IThreadPool pool)
         {
-            var @event = new CountdownEvent(10000);
+            var @event = new CountdownEvent(1000000);
             var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 10000; i++)
+            for (var i = 0; i < 1000000; i++)
             {
                 pool.Enqueue(_ =>
                 {
-                    Thread.Sleep(1);
                     @event.Signal();
                 });
             }

@@ -25,14 +25,14 @@ namespace DevTools.Threading
             _executionSegment = executionSegment;
             _lifetimeStrategy = lifetimeStrategy;
             _stoppedEvent = new ManualResetEvent(false);
-            _executionSegment.SetExecutingUnit(ThreadWorker);
+            _executionSegment.SetExecutingUnit(SegmentWorker);
         }
 
         protected IThreadPool ThreadPool => _threadPool;
         protected IThreadPoolQueue ThreadPoolQueue => _globalQueue;
         protected IExecutionSegment ExecutionSegment => _executionSegment;
         
-        private void ThreadWorker(object ctx)
+        private void SegmentWorker(object ctx)
         {
             // Assign access to my shared queue of local items
             var tl = ThreadPoolWorkQueueThreadLocals.instance; 
@@ -48,7 +48,7 @@ namespace DevTools.Threading
             SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
 
             // Notify user code
-            OnThreadStarted();
+            OnStarted();
 
             // work cycle
             var finishRequested = false;
@@ -86,27 +86,15 @@ namespace DevTools.Threading
             }
             
             // Make stopping logic
-            OnThreadStopping();
+            OnStopping();
 
             _stoppedEvent.Set();
         }
 
-        /// <summary>
-        /// Called when next event will be Got Work
-        /// </summary>
-        internal void OnThreadWakeUp()
-        {
-            
-        }
-
-        protected abstract void OnThreadStarted();
+        protected abstract void OnStarted();
         
-        protected abstract void OnThreadStopping();
+        protected abstract void OnStopping();
         
-        protected abstract void OnWorkArrived();
-        
-        protected abstract void OnThreadPaused();
-
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
             var workQueue = _globalQueue;
@@ -124,7 +112,6 @@ namespace DevTools.Threading
                     
                     if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, 0, -1) == false)
                     {
-                        Console.WriteLine($"Stopping thread");
                         tl.TransferLocalWork();
                         askedToFinishThread = true;
                     }
@@ -164,10 +151,8 @@ namespace DevTools.Threading
                 unitsOfWorkCounter++;
                 workItem = null;
 
-                int currentTickCount = Environment.TickCount;
                 if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, sw.Elapsed.TotalMilliseconds) == false)
                 {
-                    Console.WriteLine($"Stopping thread");
                     tl.TransferLocalWork();
                     askedToFinishThread = true;
                     break;

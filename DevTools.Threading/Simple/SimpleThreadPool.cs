@@ -38,7 +38,7 @@ namespace DevTools.Threading
 
         public WaitHandle InitializedWaitHandle => _event;
      
-        bool IThreadPoolThreadsManagement.CreateAdditionalThread()
+        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegment()
         {
             _managementSegment.SetExecutingUnit(_ =>
             {
@@ -50,11 +50,6 @@ namespace DevTools.Threading
             return true;
         }
 
-        bool IThreadPoolThreadsManagement.CheckCanStopThread()
-        {
-            return _segments.Count > MinAllowedThreads;
-        }
-
         bool IThreadPoolThreadsManagement.NotifyExecutionSegmentStopping(IExecutionSegment segment)
         {
             lock (_segments)
@@ -62,10 +57,13 @@ namespace DevTools.Threading
                 if (_segments.Count > MinAllowedThreads)
                 {
                     _segments.Remove(segment);
+                    
+                    // allow action
                     return true;
                 }
             }
 
+            // disallow action
             return false;
         }
 

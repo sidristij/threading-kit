@@ -2,14 +2,14 @@ namespace DevTools.Threading
 {
     public class SimpleLogic : SimplifiedLogicBase
     {
-        protected override void OnThreadStarted()
+        protected override void OnStarted()
         {
-            
+            ;
         }
 
-        protected override void OnWorkArrived()
+        protected override void OnStopping()
         {
-            // ;
+            ;
         }
     }
 }
