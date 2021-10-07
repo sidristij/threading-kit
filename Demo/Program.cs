@@ -39,12 +39,13 @@ namespace Demo
 
         private static void TestSimplePool(IThreadPool pool)
         {
-            var @event = new CountdownEvent(100000);
+            var @event = new CountdownEvent(10000);
             var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 100000; i++)
+            for (var i = 0; i < 10000; i++)
             {
                 pool.Enqueue(_ =>
                 {
+                    Thread.Sleep(1);
                     @event.Signal();
                 });
             }

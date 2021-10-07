@@ -29,11 +29,15 @@ namespace DevTools.Threading
             IExecutionSegment executionSegment,
             int globalQueueCount, int workitemsDone, double timeSpanMs)
         {
-            if (LastStopBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStops && _threadsManagement.CheckCanStopThread())
+            if (LastStopBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStops)
             {
-                LastStopBreakpoint.Restart();
-                _threadsManagement.NotifyExecutionSegmentStopped(executionSegment);
-                return true;
+                if(_threadsManagement.NotifyExecutionSegmentStopping(executionSegment))
+                {
+                    LastStopBreakpoint.Restart();
+                    return true;
+                }
+
+                ;
             }
             return false;
         }

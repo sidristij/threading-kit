@@ -7,6 +7,6 @@ namespace DevTools.Threading
         bool CreateAdditionalThread();
         bool CheckCanStopThread();
 
-        void NotifyExecutionSegmentStopped(IExecutionSegment segment);
+        bool NotifyExecutionSegmentStopping(IExecutionSegment segment);
     }
 }
