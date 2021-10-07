@@ -15,7 +15,7 @@ namespace DevTools.Threading
         private volatile int _workitemsDoneFromLastStart = 0; 
         private Stopwatch LastStopBreakpoint = Stopwatch.StartNew();
         private Stopwatch LastStartBreakpoint = Stopwatch.StartNew();
-        private SpinLock _threadCreationLock = new SpinLock();
+        private object _threadCreationLock = new object();
 
         public SimpleThreadPoolLifetimeStrategy(IThreadPoolThreadsManagement threadsManagement)
         {
@@ -66,8 +66,7 @@ namespace DevTools.Threading
 
                 if (timeToExecute > MinIntervalToStartWorkitem)
                 {
-                    var locked = false;
-                    _threadCreationLock.TryEnter(ref locked);
+                    var locked = Monitor.TryEnter(_threadCreationLock);
                     try
                     {
                         if (locked)
@@ -83,7 +82,7 @@ namespace DevTools.Threading
                     {
                         if (locked)
                         {
-                            _threadCreationLock.Exit();
+                            Monitor.Exit(_threadCreationLock);
                         }
                     }
                 }
