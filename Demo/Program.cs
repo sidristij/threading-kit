@@ -9,6 +9,7 @@ namespace Demo
     {
         static void Main(string[] args)
         {
+            Console.ReadKey();
             TestRegularPool();
 
             var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic>();
@@ -18,7 +19,7 @@ namespace Demo
 
             Console.ReadKey();
             
-            TestSimplePool(pool);
+            // TestSimplePool(pool);
             
             Console.WriteLine("done");
         }
