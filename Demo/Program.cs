@@ -11,8 +11,17 @@ namespace Demo
         static void Main(string[] args)
         {
             TestRegularPool();
+
+            var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic>();
+            pool.InitializedWaitHandle.WaitOne();
+
+            TestSimplePool(pool);
+
+            Console.ReadKey();
+
+            TestSimplePool(pool);
             
-            TestSimplePool();
+            Console.WriteLine("done");
         }
 
         private static void TestRegularPool()
@@ -28,15 +37,16 @@ namespace Demo
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        private static void TestSimplePool()
+        private static void TestSimplePool(IThreadPool pool)
         {
             var @event = new CountdownEvent(100000);
-            var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic>();
-            pool.InitializedWaitHandle.WaitOne();
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < 100000; i++)
             {
-                pool.Enqueue(_ => { @event.Signal(); });
+                pool.Enqueue(_ =>
+                {
+                    @event.Signal();
+                });
             }
             @event.Wait();
             Console.WriteLine(sw.ElapsedMilliseconds);

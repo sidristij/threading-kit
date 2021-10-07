@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -106,14 +107,11 @@ namespace DevTools.Threading
         
         protected abstract void OnThreadPaused();
 
-        private void Dispatch(ref bool hasWork, ref bool askedToRemoveThread)
+        private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
             var workQueue = _globalQueue;
             var tl = ThreadPoolWorkQueueThreadLocals.instance;
             int unitsOfWorkCounter = 0;
-
-            // Before dequeuing the first work item, acknowledge that the thread request has been satisfied
-            // workQueue.MarkThreadRequestSatisfied();
 
             UnitOfWork workItem;
             {
@@ -122,43 +120,26 @@ namespace DevTools.Threading
 
                 if (workItem == default)
                 {
-                    //
-                    // No work.
-                    // If we missed a steal, though, there may be more work in the queue.
-                    // Instead of looping around and trying again, we'll just request another thread.  Hopefully the thread
-                    // that owns the contended work-stealing queue will pick up its own workitems in the meantime,
-                    // which will be more efficient than this thread doing it anyway.
-                    //
-                    if (missedSteal)
-                    {
-                        // workQueue.EnsureThreadRequested();
-                    }
-
-                    // Tell the VM we're returning normally, not because Hill Climbing asked us to return.
                     hasWork = false;
+                    
+                    if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, 0, -1) == false)
+                    {
+                        Console.WriteLine($"Stopping thread");
+                        tl.TransferLocalWork();
+                        askedToFinishThread = true;
+                    }
                     return;
                 }
-
-                // A work item was successfully dequeued, and there may be more work items to process. Request a thread to
-                // parallelize processing of work items, before processing more work items. Following this, it is the
-                // responsibility of the new thread and other enqueuers to request more threads as necessary. The
-                // parallelization may be necessary here for correctness (aside from perf) if the work item blocks for some
-                // reason that may have a dependency on other queued work items.
-                // workQueue.EnsureThreadRequested();
             }
-
-
-            var currentThread = tl.currentThread;
 
             //
             // Save the start time
             //
-            int startTickCount = Environment.TickCount;
+            var sw = Stopwatch.StartNew();
 
             //
             // Loop until our quantum expires or there is no work.
             //
-            bool returnValue;
             while (true)
             {
                 if (workItem == null)
@@ -168,63 +149,46 @@ namespace DevTools.Threading
 
                     if (workItem == null)
                     {
-                        //
-                        // No work.
-                        // If we missed a steal, though, there may be more work in the queue.
-                        // Instead of looping around and trying again, we'll just request another thread.  Hopefully the thread
-                        // that owns the contended work-stealing queue will pick up its own workitems in the meantime,
-                        // which will be more efficient than this thread doing it anyway.
-                        //
                         if (missedSteal)
                         {
-                            // Ensure a thread is requested before returning
                             hasWork = true;
                             break;
                         }
-
-                        // Tell the VM we're returning normally, not because Hill Climbing asked us to return.
+                        // hasWork == false, askedToRemoveThread == false
                         return;
                     }
-
                     hasWork = true;
                 }
 
-                //
-                // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
-                //
                 workItem.Run();
                 unitsOfWorkCounter++;
-                // Release refs
                 workItem = null;
 
-                //
-                // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants
-                // us to return the thread to the pool or not.
-                //
                 int currentTickCount = Environment.TickCount;
-                if (!_lifetimeStrategy.NotifyWorkItemComplete(unitsOfWorkCounter, currentTickCount - startTickCount))
+                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, sw.Elapsed.TotalMilliseconds) == false)
                 {
-                    // This thread is being parked and may remain inactive for a while. Transfer any thread-local work items
-                    // to ensure that they would not be heavily delayed.
+                    Console.WriteLine($"Stopping thread");
                     tl.TransferLocalWork();
-
-                    // Ensure a thread is requested before returning
-                    askedToRemoveThread = true;
+                    askedToFinishThread = true;
                     break;
                 }
 
                 // Check if the dispatch quantum has expired
-                if ((uint)(currentTickCount - startTickCount) < DispatchQuantumMs)
+                if (sw.Elapsed.TotalMilliseconds < DispatchQuantumMs)
                 {
                     continue;
                 }
-
-                // This method will continue to dispatch work items. Refresh the start tick count for the next dispatch
-                // quantum and do some periodic activities.
-                startTickCount = currentTickCount;
+                else
+                {
+                    break;
+                }
             }
 
-            // workQueue.EnsureThreadRequested();
+            // if nothing was done
+            if (unitsOfWorkCounter == 0 && hasWork == false)
+            {
+                // _lifetimeStrategy.NotifyUnitOfWorkCycleFinished()
+            }
         }
     }
 }

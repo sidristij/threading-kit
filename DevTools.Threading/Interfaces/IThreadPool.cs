@@ -7,6 +7,8 @@ namespace DevTools.Threading
     {
         SynchronizationContext SynchronizationContext { get; }
         
+        int ParallelismLevel { get; }
+        
         void Enqueue(ExecutionUnit unit, object state = default);
         
         void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default);

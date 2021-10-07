@@ -1,33 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using DevTools.MemoryPools;
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPool<TQueueType, TThreadWrapperType> : IThreadPool 
+    public class SimpleThreadPool<TQueueType, TThreadWrapperType> : IThreadPool, IThreadPoolThreadsManagement
         where TQueueType : IThreadPoolQueue, new() 
         where TThreadWrapperType : ExecutionSegmentLogicBase, new()
     {
         private const string ManagementSegmentName = "Management segment";
+        private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
+        private readonly int MinAllowedThreads = 2;
         private readonly TQueueType _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ManualResetEvent _event = new ManualResetEvent(false);
+        private readonly IThreadPoolLifetimeStrategy _globalStrategy;
+        private volatile int _threadsCounter = 0;
         
         public SimpleThreadPool()
         {
             SynchronizationContext = new DedicatedSynchronizationContext(this);
+            _globalStrategy = new SimpleThreadPoolLifetimeStrategy(this);
             _managementSegment.SetExecutingUnit(_ =>
             {
                 for (var i = 0; i < Environment.ProcessorCount; i++)
                 {
-                    var threadSegment = new ExecutionSegment($"{ManagementSegmentName}: #{i}");
-                    _segments.Add(threadSegment);
-
-                    var segmentLogic = new TThreadWrapperType();
-                    var strategy = new SimpleThreadPoolThreadLifetimeStrategy();
-                    segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
+                    CreateAdditionalThreadImpl();
                 }
                 _event.Set();
             });
@@ -35,8 +34,30 @@ namespace DevTools.Threading
 
         public SynchronizationContext SynchronizationContext { get; }
 
+        public int ParallelismLevel => _segments.Count;
+
         public WaitHandle InitializedWaitHandle => _event;
-        
+     
+        bool IThreadPoolThreadsManagement.CreateAdditionalThread()
+        {
+            _managementSegment.SetExecutingUnit(_ =>
+            {
+                Console.WriteLine($"Created additional thread #{_segments.Count}");
+                CreateAdditionalThreadImpl();
+            });
+            return true;
+        }
+
+        bool IThreadPoolThreadsManagement.CheckCanStopThread()
+        {
+            return _segments.Count > MinAllowedThreads;
+        }
+
+        void IThreadPoolThreadsManagement.NotifyExecutionSegmentStopped(IExecutionSegment segment)
+        {
+            _segments.Remove(segment);
+        }
+
         public void Enqueue(ExecutionUnit unit, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, ThreadPoolItemPriority.Default, state);
@@ -59,15 +80,29 @@ namespace DevTools.Threading
                 InternalState = state
             };
 
-            ExecutionUnit callback = args =>
+            void ExecutionUnitCallback(object args)
             {
                 var workload = (WaitForSingleObjectState)args;
                 workload.Handle.WaitOne(workload.Timeout);
                 workload.Delegate(workload.InternalState);
-            }; 
-            
-            var unitOfWork = new UnitOfWork(callback, ThreadPoolItemPriority.Default, wfsoState);
+            }
+
+            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, ThreadPoolItemPriority.Default, wfsoState);
             _globalQueue.Enqueue(unitOfWork);
+        }
+        
+        private void CreateAdditionalThreadImpl()
+        {
+            if (_segments.Count < MaxAllowedThreads)
+            {
+                var index = Interlocked.Increment(ref _threadsCounter);
+                var threadSegment = new ExecutionSegment($"{ManagementSegmentName}: #{index}");
+                _segments.Add(threadSegment);
+
+                var segmentLogic = new TThreadWrapperType();
+                var strategy = new SimpleThreadPoolThreadLifetimeStrategy(threadSegment, _globalStrategy);
+                segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
+            }
         }
         
         private class WaitForSingleObjectState
