@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -8,15 +9,26 @@ namespace DevTools.Threading
         private volatile int _pos = 0;
         private int _first = 1;
         private readonly int _length;
+        private readonly int _lastIndex;
 
-        public CyclicQueue(int capacity)
+        public CyclicQueue()
         {
-            _array = new Wrapper[capacity];
-            _length = capacity;
+            _array = new Wrapper[8];
+            _length = 8;
+            _lastIndex = _length - 1;
         }
         
-        public T this[int i] => _array[i].Value;
-        public int Count => _array.Length;
+        public T this[int i]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _array[i].Value;
+        }
+
+        public int Count
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _array.Length;
+        }
 
         public void Add(T value)
         {
@@ -36,9 +48,9 @@ namespace DevTools.Threading
             {
                 var curpos = _pos;
                 int index;
-                if (curpos == _length - 1)
+                if (curpos == _lastIndex)
                 {
-                    if (Interlocked.CompareExchange(ref _pos, 0, _length - 1) == _length - 1)
+                    if (Interlocked.CompareExchange(ref _pos, 0, _lastIndex) == _lastIndex)
                     {
                         _array[0].Value = value;
                         return;
@@ -47,7 +59,7 @@ namespace DevTools.Threading
 
                 index = Interlocked.Increment(ref _pos);
                 
-                _array[index % _array.Length].Value = value;
+                _array[index & _lastIndex].Value = value;
             }
         }
 
@@ -63,14 +75,10 @@ namespace DevTools.Threading
         /// <summary>
         /// Gets avg of values in queue 
         /// </summary>
-        public static double GetAvg(this CyclicQueue<double> queue)
+        public static double GetAvg(this CyclicQueue<float> queue)
         {
-            var sum = 0.0;
-            for (int i = 0, len = queue.Count; i < len; i++)
-            {
-                sum += queue[i];
-            }
-            return sum / queue.Count;
+            return (queue[0] + queue[1] + queue[2] + queue[3] +
+                    queue[4] + queue[5] + queue[6] + queue[7]) / 8;
         }
     }
 }

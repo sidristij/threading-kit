@@ -51,38 +51,19 @@ namespace DevTools.Threading
             OnStarted();
 
             // work cycle
-            var finishRequested = false;
-            var idleLoopsCount = 0;
-            while (finishRequested == false)
+            var hasWork = false;
+            var askedToRemoveThread = false;
+            var spinner = new SpinWait();
+            
+            while (askedToRemoveThread == false)
             {
-                var hasWork = false;
-                var askedToRemoveThread = false;
-                
                 // ~ 30ms to work
                 Dispatch(ref hasWork, ref askedToRemoveThread);
                 
-                if (askedToRemoveThread)
-                {
-                    break;
-                }
-
                 if (!hasWork)
                 {
-                    if (idleLoopsCount > 12)
-                    {
-                        idleLoopsCount = 0;
-                        
-                    } else if (idleLoopsCount > 10)
-                    {
-                        Thread.Yield();
-                    }
+                    spinner.SpinOnce();
                 }
-                else
-                {
-                    idleLoopsCount = 0;
-                }
-
-                idleLoopsCount++;
             }
             
             // Make stopping logic
@@ -151,22 +132,18 @@ namespace DevTools.Threading
                 unitsOfWorkCounter++;
                 workItem = default;
 
-                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, sw.Elapsed.TotalMilliseconds) == false)
-                {
-                    tl.TransferLocalWork();
-                    askedToFinishThread = true;
-                    break;
-                }
-
                 // Check if the dispatch quantum has expired
                 if (sw.Elapsed.TotalMilliseconds < DispatchQuantumMs)
                 {
                     continue;
                 }
-                else
+
+                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, (float)sw.Elapsed.TotalMilliseconds) == false)
                 {
-                    break;
+                    tl.TransferLocalWork();
+                    askedToFinishThread = true;
                 }
+                break;
             }
 
             // if nothing was done

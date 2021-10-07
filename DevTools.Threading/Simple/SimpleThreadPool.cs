@@ -69,13 +69,13 @@ namespace DevTools.Threading
 
         public void Enqueue(ExecutionUnit unit, object state = default)
         {
-            var unitOfWork = new UnitOfWork(unit, ThreadPoolItemPriority.Default, state);
+            var unitOfWork = new UnitOfWork(unit, state);
             _globalQueue.Enqueue(unitOfWork);
         }
 
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
         {
-            var unitOfWork = new UnitOfWork(unit, priority, state);
+            var unitOfWork = new UnitOfWork(unit, state);
             _globalQueue.Enqueue(unitOfWork);
         }
 
@@ -96,7 +96,7 @@ namespace DevTools.Threading
                 workload.Delegate(workload.InternalState);
             }
 
-            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, ThreadPoolItemPriority.Default, wfsoState);
+            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, wfsoState);
             _globalQueue.Enqueue(unitOfWork);
         }
         
@@ -114,7 +114,7 @@ namespace DevTools.Threading
                 }
             }
 
-            if(threadSegment != default)
+            if (threadSegment != default)
             {
                 var segmentLogic = new TThreadWrapperType();
                 var strategy = new SimpleThreadPoolThreadLifetimeStrategy(threadSegment, _globalStrategy);

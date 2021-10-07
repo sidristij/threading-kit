@@ -18,7 +18,7 @@ namespace DevTools.Threading
             _poolStrategy = poolStrategy;
         }
         
-        public bool CheckCanContinueWork(int globalQueueCount, int workitemsDone, double timeSpanMs)
+        public bool CheckCanContinueWork(int globalQueueCount, int workitemsDone, float timeSpanMs)
         {
             var immediateNothing = (timeSpanMs < 0) && workitemsDone == 0;
             var gotNothingOnLoop = timeSpanMs >= 0 && workitemsDone == 0;

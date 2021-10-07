@@ -50,10 +50,10 @@ namespace DevTools.Threading
                     var c = queues.Length;
                     var maxIndex = c - 1;
                     var i = Environment.TickCount % c;
-                    var stopAt = Math.Max(0, c - 4);
+                    var stopAt = Math.Max(0, c - 2);
 
                     // nothing to do: try to steal work from other queues
-                    while (c > 0)
+                    while (c > stopAt)
                     {
                         i = (i < maxIndex) ? i + 1 : 0;
                         var otherQueue = queues[i];

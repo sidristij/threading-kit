@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using DevTools.Threading;
 
 namespace DevTools.Threading
 {
@@ -12,15 +11,8 @@ namespace DevTools.Threading
         internal volatile UnitOfWork[] m_array = new UnitOfWork[INITIAL_SIZE]; // SOS's ThreadPool command depends on this name
         private volatile int m_mask = INITIAL_SIZE - 1;
  
-#if DEBUG
-        // in debug builds, start at the end so we exercise the index reset logic.
-        private const int START_INDEX = int.MaxValue;
-#else
-            private const int START_INDEX = 0;
-#endif
- 
-        private volatile int m_headIndex = START_INDEX;
-        private volatile int m_tailIndex = START_INDEX;
+        private volatile int m_headIndex = 0;
+        private volatile int m_tailIndex = 0;
  
         private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
  

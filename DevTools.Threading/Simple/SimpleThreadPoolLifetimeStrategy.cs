@@ -10,7 +10,7 @@ namespace DevTools.Threading
         private const int MinIntervalBetweenStops = 500; // ms
         private const int MinIntervalBetweenStarts = 200; // ms
         
-        private readonly CyclicQueue<double> _valuableIntervals = new(8);
+        private readonly CyclicQueue<float> _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 
         private Stopwatch LastStopBreakpoint = Stopwatch.StartNew();
@@ -47,7 +47,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
         /// </summary>
-        public void RequestForThreadStartIfNeed(int globalQueueCount, int workitemsDone, double timeSpanMs)
+        public void RequestForThreadStartIfNeed(int globalQueueCount, int workitemsDone, float timeSpanMs)
         {
             if (workitemsDone > 0)
             {
@@ -55,7 +55,7 @@ namespace DevTools.Threading
             }
 
             // check if can start new thread
-            if (LastStartBreakpoint.Elapsed.TotalMilliseconds > MinIntervalBetweenStarts)
+            if (LastStartBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStarts)
             {
                 Interlocked.Add(ref _workitemsDoneFromLastStart, workitemsDone);
                 
@@ -74,7 +74,6 @@ namespace DevTools.Threading
                             if (_threadsManagement.CreateAdditionalExecutionSegment())
                             {
                                 Interlocked.Exchange(ref _workitemsDoneFromLastStart, 0);
-                                LastStartBreakpoint.Restart();
                             }
                         }
                     }
@@ -86,6 +85,8 @@ namespace DevTools.Threading
                         }
                     }
                 }
+                
+                LastStartBreakpoint.Restart();
             }
         }
     }
