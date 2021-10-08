@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Threading;
 
@@ -6,15 +5,16 @@ namespace DevTools.Threading
 {
     public class SimpleThreadPoolLifetimeStrategy : IThreadPoolLifetimeStrategy
     {
-        private const int MinIntervalToStartWorkitem = 500; // ms
-        private const int MinIntervalBetweenStops = 500; // ms
-        private const int MinIntervalBetweenStarts = 200; // ms
-        
+        private readonly long MinIntervalToStartWorkitem = (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+        private readonly long MinIntervalBetweenStops =  (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+        private readonly long MinIntervalBetweenStarts =  (200 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+
+        private long divto = Stopwatch.Frequency;  // <- to ms
         private readonly CyclicQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 
-        private Stopwatch LastStopBreakpoint = Stopwatch.StartNew();
-        private Stopwatch LastStartBreakpoint = Stopwatch.StartNew();
+        private long LastStopBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
+        private long LastStartBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
         private object _threadCreationLock = new object();
 
         public SimpleThreadPoolLifetimeStrategy(IThreadPoolThreadsManagement threadsManagement)
@@ -29,13 +29,14 @@ namespace DevTools.Threading
         /// </summary>
         public bool RequestForThreadStop(
             IExecutionSegment executionSegment,
-            int globalQueueCount, int workitemsDone, double timeSpanMs)
+            int globalQueueCount, int workItemsDone, long range_µs)
         {
-            if (LastStopBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStops)
+            var elapsed = Stopwatch.GetTimestamp() / Time.ticks_to_µs - LastStopBreakpoint;
+            if (elapsed > MinIntervalBetweenStops)
             {
                 if(_threadsManagement.NotifyExecutionSegmentStopping(executionSegment))
                 {
-                    LastStopBreakpoint.Restart();
+                    Interlocked.Add(ref LastStopBreakpoint, elapsed);
                     return true;
                 }
 
@@ -47,15 +48,16 @@ namespace DevTools.Threading
         /// <summary>
         /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
         /// </summary>
-        public void RequestForThreadStartIfNeed(int globalQueueCount, int workItemsDone, float timeSpanMs)
+        public void RequestForThreadStartIfNeed(int globalQueueCount, int workItemsDone, long range_µs)
         {
             if (workItemsDone > 0)
             {
-                _valuableIntervals.Add(timeSpanMs / workItemsDone);
+                _valuableIntervals.Add(range_µs / workItemsDone);
             }
 
             // check if can start new thread
-            if (LastStartBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStarts)
+            var elapsed = Stopwatch.GetTimestamp() / Time.ticks_to_µs - LastStartBreakpoint;
+            if (elapsed > MinIntervalBetweenStarts)
             {
                 Interlocked.Add(ref _workitemsDoneFromLastStart, workItemsDone);
                 
@@ -86,7 +88,7 @@ namespace DevTools.Threading
                     }
                 }
                 
-                LastStartBreakpoint.Restart();
+                Interlocked.Add(ref LastStartBreakpoint, elapsed);
             }
         }
     }

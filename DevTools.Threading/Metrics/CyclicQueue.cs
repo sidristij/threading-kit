@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -10,7 +8,7 @@ namespace DevTools.Threading
         private readonly Wrapper[] _array;
         private volatile int _pos = 0;
         private long _sum = 0;
-        private float _avg;
+        private long _avg;
         private readonly int _length;
         private readonly int _lastIndex;
 
@@ -34,9 +32,9 @@ namespace DevTools.Threading
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetAvg() => _avg;
+        public long GetAvg() => _avg;
 
-        public void Add(float value)
+        public void Add(long value)
         {
             // if first set, fill with value to get correct AVG
             var curpos = _pos;
@@ -45,22 +43,22 @@ namespace DevTools.Threading
             {
                 if (Interlocked.CompareExchange(ref _pos, 0, _lastIndex) == _lastIndex)
                 {
-                    Interlocked.Add(ref _sum, (long)((value - _array[0].Value) * 100000));
+                    Interlocked.Add(ref _sum, value - _array[0].Value);
                     _array[0].Value = value;
                     return;
                 }
             }
 
             var index = Interlocked.Increment(ref _pos) & _lastIndex;
-            Interlocked.Add(ref _sum, (long)((value - _array[index].Value) * 100000));
+            Interlocked.Add(ref _sum, value - _array[index].Value);
             _array[index].Value = value;
-            _avg = _sum / 10000;
+            _avg = _sum / _length;
         }
 
         // for array access speedup
         private struct Wrapper
         {
-            public float Value;
+            public long Value;
         }
     }
 }

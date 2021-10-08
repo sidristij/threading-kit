@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Threading;
 
@@ -12,7 +11,7 @@ namespace DevTools.Threading
         private IThreadPoolThreadLifetimeStrategy _lifetimeStrategy;
         private ManualResetEvent _stoppedEvent;
 
-        private const uint DispatchQuantumMs = 30;
+        private readonly long DispatchQuantum_µs = (30 * Time.ticks_to_ms) / Time.ticks_to_µs;
         
         public virtual void InitializeAndStart(
             IThreadPool threadPool,
@@ -104,7 +103,7 @@ namespace DevTools.Threading
             //
             // Save the start time
             //
-            var sw = Stopwatch.StartNew();
+            var start_in_µs = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
 
             //
             // Loop until our quantum expires or there is no work.
@@ -113,7 +112,7 @@ namespace DevTools.Threading
             {
                 if (workItem.InternalObjectIndex == 0)
                 {
-                    bool missedSteal = false;
+                    var missedSteal = false;
                     workItem = workQueue.Dequeue(ref missedSteal);
 
                     if (workItem.InternalObjectIndex == 0)
@@ -134,12 +133,13 @@ namespace DevTools.Threading
                 workItem = default;
 
                 // Check if the dispatch quantum has expired
-                if (sw.Elapsed.TotalMilliseconds < DispatchQuantumMs)
+                var elapsed_µs = (Stopwatch.GetTimestamp() / Time.ticks_to_µs - start_in_µs) ;
+                if (elapsed_µs < DispatchQuantum_µs)
                 {
                     continue;
                 }
 
-                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, (float)sw.Elapsed.TotalMilliseconds) == false)
+                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, elapsed_µs) == false)
                 {
                     tl.TransferLocalWork();
                     askedToFinishThread = true;

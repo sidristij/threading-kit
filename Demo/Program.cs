@@ -18,8 +18,11 @@ namespace Demo
 
             TestRegularPool();
             TestSimplePool(pool);
+            
+            TestRegularPool();
+            TestSimplePool(pool);
 
-            Console.ReadKey();
+            // Console.ReadKey();
             
             // TestSimplePool(pool);
             
