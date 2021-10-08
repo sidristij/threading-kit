@@ -9,12 +9,14 @@ namespace Demo
     {
         static void Main(string[] args)
         {
-            Console.ReadKey();
-            TestRegularPool();
 
             var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic>();
             pool.InitializedWaitHandle.WaitOne();
 
+            TestRegularPool();
+            TestSimplePool(pool);
+
+            TestRegularPool();
             TestSimplePool(pool);
 
             Console.ReadKey();

@@ -10,7 +10,7 @@ namespace DevTools.Threading
         private const int MinIntervalBetweenStops = 500; // ms
         private const int MinIntervalBetweenStarts = 200; // ms
         
-        private readonly CyclicQueue<float> _valuableIntervals = new();
+        private readonly CyclicQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 
         private Stopwatch LastStopBreakpoint = Stopwatch.StartNew();
@@ -47,17 +47,17 @@ namespace DevTools.Threading
         /// <summary>
         /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
         /// </summary>
-        public void RequestForThreadStartIfNeed(int globalQueueCount, int workitemsDone, float timeSpanMs)
+        public void RequestForThreadStartIfNeed(int globalQueueCount, int workItemsDone, float timeSpanMs)
         {
-            if (workitemsDone > 0)
+            if (workItemsDone > 0)
             {
-                _valuableIntervals.Add(timeSpanMs / workitemsDone);
+                _valuableIntervals.Add(timeSpanMs / workItemsDone);
             }
 
             // check if can start new thread
             if (LastStartBreakpoint.ElapsedMilliseconds > MinIntervalBetweenStarts)
             {
-                Interlocked.Add(ref _workitemsDoneFromLastStart, workitemsDone);
+                Interlocked.Add(ref _workitemsDoneFromLastStart, workItemsDone);
                 
                 var avgWorkitemCost = _valuableIntervals.GetAvg();
                 var parallelism = _threadsManagement.ParallelismLevel;
