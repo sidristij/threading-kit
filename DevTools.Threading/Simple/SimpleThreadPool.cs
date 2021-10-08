@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPool<TQueueType, TThreadWrapperType> : IThreadPool, IThreadPoolThreadsManagement
+    public class SimpleThreadPool<TQueueType, TThreadWrapperType, TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
         where TQueueType : IThreadPoolQueue, new() 
-        where TThreadWrapperType : ExecutionSegmentLogicBase, new()
+        where TThreadWrapperType : ExecutionSegmentLogicBase<TPoolParameter>, new()
     {
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
@@ -74,6 +75,12 @@ namespace DevTools.Threading
             _globalQueue.Enqueue(unitOfWork);
         }
 
+        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default)
+        {
+            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state);
+            _globalQueue.Enqueue(unitOfWork);
+        }
+        
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, state);

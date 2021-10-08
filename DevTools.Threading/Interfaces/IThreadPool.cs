@@ -15,4 +15,9 @@ namespace DevTools.Threading
 
         void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default);
     }
+
+    public interface IThreadPool<TPoolParameter> : IThreadPool
+    {
+        void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = null);
+    }
 }

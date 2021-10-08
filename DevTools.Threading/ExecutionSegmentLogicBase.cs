@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public abstract class ExecutionSegmentLogicBase
+    public abstract class ExecutionSegmentLogicBase<TParam>
     {
         private IThreadPool _threadPool;
         private IThreadPoolQueue _globalQueue;
@@ -75,6 +75,11 @@ namespace DevTools.Threading
         protected abstract void OnStarted();
         
         protected abstract void OnStopping();
+
+        protected virtual void OnRun(UnitOfWork unitOfWork)
+        {
+            unitOfWork.Run();
+        }
         
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
@@ -128,7 +133,7 @@ namespace DevTools.Threading
                     hasWork = true;
                 }
 
-                workItem.Run();
+                OnRun(workItem);
                 unitsOfWorkCounter++;
                 workItem = default;
 

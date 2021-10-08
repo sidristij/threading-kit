@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -25,7 +26,19 @@ namespace DevTools.Threading
         {
             try
             {
-                _unit.Invoke(_unitState);
+                _unit?.Invoke(_unitState);
+            }
+            catch (Exception _)
+            {
+                ;
+            }
+        }
+
+        public void Run<TParam>(TParam param)
+        {
+            try
+            {
+                Unsafe.As<ExecutionUnit<TParam>>(_unit)?.Invoke(param, _unitState);
             }
             catch (Exception _)
             {
