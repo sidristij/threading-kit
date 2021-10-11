@@ -11,23 +11,23 @@ namespace DevTools.Threading
         private volatile int _parallelCounter = 0;
         
         // Set of local for each thread queues
-        private readonly WorkStealingQueueList _stealingQueue = new();
+        private readonly ThreadsLocalQueuesList _stealingQueue = new();
 
-        WorkStealingQueueList IThreadPoolInternalData.QueueList => _stealingQueue;
+        ThreadsLocalQueuesList IThreadPoolInternalData.QueueList => _stealingQueue;
 
         public int GlobalCount => _parallelCounter;
 
         public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal)
         {
-            ThreadPoolWorkQueueThreadLocals tl = null;
+            ThreadLocals tl = null;
             if (!forceGlobal)
             {
-                tl = ThreadPoolWorkQueueThreadLocals.instance;
+                tl = ThreadLocals.instance;
             }
 
             if (tl != null)
             {
-                tl.workStealingQueue.LocalPush(unitOfWork);                
+                tl.LocalQueue.Enqueue(unitOfWork);                
             }
             else
             {
@@ -39,33 +39,32 @@ namespace DevTools.Threading
         public UnitOfWork Dequeue(ref bool missedSteal)
         {
             UnitOfWork unitOfWork;
-            var tl = ThreadPoolWorkQueueThreadLocals.instance;
-            var localWsq = tl.workStealingQueue;
+            var tl = ThreadLocals.instance;
+            var localWsq = tl.LocalQueue;
 
-            if ((unitOfWork = tl.workStealingQueue.LocalPop()).InternalObjectIndex == 0)
+            if (tl.LocalQueue.TryDequeue(out unitOfWork) == false)
             {
-                if (!_workQueue.TryDequeue(out unitOfWork))
+                if (_workQueue.TryDequeue(out unitOfWork) == false)
                 {
-                    var queues = _stealingQueue.Queues;
+                    var queues = _stealingQueue._queues;
                     var c = queues.Length;
                     var maxIndex = c - 1;
                     var i = Environment.TickCount % c;
                     var stopAt = Math.Max(0, c - 2);
-
+                    
                     // nothing to do: try to steal work from other queues
                     while (c > stopAt)
                     {
                         i = (i < maxIndex) ? i + 1 : 0;
                         var otherQueue = queues[i];
-                        if (otherQueue != localWsq && otherQueue.CanSteal)
+                        if (otherQueue != localWsq && otherQueue.HasAny && otherQueue.TryDequeue(out unitOfWork))
                         {
-                            unitOfWork = otherQueue.TrySteal(ref missedSteal);
                             if (unitOfWork.InternalObjectIndex != 0)
                             {
                                 return unitOfWork;
                             }
                         }
-
+                    
                         c--;
                     }
                 }

@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public abstract class ExecutionSegmentLogicBase<TParam>
+    public abstract class ExecutionSegmentLogicBase
     {
         private IThreadPool _threadPool;
         private IThreadPoolQueue _globalQueue;
@@ -13,7 +13,7 @@ namespace DevTools.Threading
 
         private readonly long DispatchQuantum_µs = (30 * Time.ticks_to_ms) / Time.ticks_to_µs;
         
-        public virtual void InitializeAndStart(
+        public void InitializeAndStart(
             IThreadPool threadPool,
             IThreadPoolQueue globalQueue,
             IThreadPoolThreadLifetimeStrategy lifetimeStrategy,
@@ -34,13 +34,13 @@ namespace DevTools.Threading
         private void SegmentWorker(object ctx)
         {
             // Assign access to my shared queue of local items
-            var tl = ThreadPoolWorkQueueThreadLocals.instance; 
+            var tl = ThreadLocals.instance; 
             if (tl == null)
             {
-                tl = new ThreadPoolWorkQueueThreadLocals(
+                tl = new ThreadLocals(
                     ThreadPoolQueue,
                     ((IThreadPoolInternalData)ThreadPoolQueue).QueueList);
-                ThreadPoolWorkQueueThreadLocals.instance = tl;
+                ThreadLocals.instance = tl;
             }
 
             // Set current sync context
@@ -84,7 +84,7 @@ namespace DevTools.Threading
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
             var workQueue = _globalQueue;
-            var tl = ThreadPoolWorkQueueThreadLocals.instance;
+            var tl = ThreadLocals.instance;
             int unitsOfWorkCounter = 0;
 
             UnitOfWork workItem;

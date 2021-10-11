@@ -2,6 +2,6 @@
 {
     internal interface IThreadPoolInternalData
     {
-        WorkStealingQueueList QueueList { get; }         
+        ThreadsLocalQueuesList QueueList { get; }         
     }
 }

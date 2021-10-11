@@ -1,6 +1,6 @@
 ﻿namespace DevTools.Threading
 {
-    public abstract class SimplifiedLogicBase<TParam> : ExecutionSegmentLogicBase<TParam>
+    public abstract class SimplifiedLogicBase : ExecutionSegmentLogicBase
     {
         protected override void OnStarted()
         {

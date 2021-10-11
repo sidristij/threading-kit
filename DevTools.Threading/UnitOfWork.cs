@@ -26,7 +26,8 @@ namespace DevTools.Threading
         {
             try
             {
-                _unit?.Invoke(_unitState);
+                Unsafe.As<ExecutionUnit<object>>(_unit).Invoke(null, _unitState);
+                this = default;
             }
             catch (Exception _)
             {
@@ -38,7 +39,8 @@ namespace DevTools.Threading
         {
             try
             {
-                Unsafe.As<ExecutionUnit<TParam>>(_unit)?.Invoke(param, _unitState);
+                Unsafe.As<ExecutionUnit<TParam>>(_unit).Invoke(param, _unitState);
+                this = default;
             }
             catch (Exception _)
             {

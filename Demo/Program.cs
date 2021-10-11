@@ -10,17 +10,24 @@ namespace Demo
         static void Main(string[] args)
         {
 
-            var pool = new SimpleThreadPool<SimpleQueue, SimpleLogic, int>();
+            var pool = new SimpleThreadPool<ulong>();
             pool.InitializedWaitHandle.WaitOne();
 
-            TestRegularPool();
-            TestSimplePool(pool);
+            // TestRegularPool();
+            // TestSimplePool(pool);
 
             TestRegularPool();
-            TestSimplePool(pool);
-            
+            TestSimplePool(pool); Console.WriteLine();
             TestRegularPool();
-            TestSimplePool(pool);
+            TestSimplePool(pool); Console.WriteLine();
+            TestRegularPool();
+            TestSimplePool(pool); Console.WriteLine();
+            TestRegularPool();
+            TestSimplePool(pool); Console.WriteLine();
+            TestRegularPool();
+            TestSimplePool(pool); Console.WriteLine();
+            TestRegularPool();
+            TestSimplePool(pool); Console.WriteLine();
 
             // Console.ReadKey();
             
@@ -32,26 +39,29 @@ namespace Demo
         private static void TestRegularPool()
         {
             var sw = Stopwatch.StartNew();
-            var @event = new CountdownEvent(1000000);
-            for (var i = 0; i < 1000000; i++)
+            var @event = new CountdownEvent(1_000_0000);
+            for (var i = 0; i < 1_000_0000; i++)
             {
-                ThreadPool.QueueUserWorkItem((x) => { @event.Signal(); });
+                ThreadPool.QueueUserWorkItem((x) =>
+                {
+                    ((CountdownEvent)x).Signal();
+                }, @event);
             }
 
             @event.Wait();
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        private static void TestSimplePool(IThreadPool<int> pool)
+        private static void TestSimplePool(IThreadPool<ulong> pool)
         {
-            var @event = new CountdownEvent(1_000_000);
+            var @event = new CountdownEvent(1_000_0000);
             var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 1_000_000; i++)
+            for (var i = 0; i < 1_000_0000; i++)
             {
-                pool.Enqueue((parameter, state)  =>
+                pool.Enqueue((arg, state)  =>
                 {
-                    @event.Signal();
-                });
+                    ((CountdownEvent)state).Signal();
+                }, @event);
             }
             @event.Wait();
             Console.WriteLine(sw.ElapsedMilliseconds);

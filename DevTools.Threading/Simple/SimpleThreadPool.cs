@@ -6,14 +6,12 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPool<TQueueType, TThreadWrapperType, TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
-        where TQueueType : IThreadPoolQueue, new() 
-        where TThreadWrapperType : ExecutionSegmentLogicBase<TPoolParameter>, new()
+    public class SimpleThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
     {
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
-        private readonly int MinAllowedThreads = 2;
-        private readonly TQueueType _globalQueue = new();
+        private readonly int MinAllowedThreads = 24;
+        private readonly SimpleQueue _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
@@ -72,19 +70,19 @@ namespace DevTools.Threading
         public void Enqueue(ExecutionUnit unit, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, state);
-            _globalQueue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork, false);
         }
 
         public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default)
         {
             var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state);
-            _globalQueue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork, false);
         }
         
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, state);
-            _globalQueue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork, false);
         }
 
         public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)
@@ -105,7 +103,7 @@ namespace DevTools.Threading
             }
 
             var unitOfWork = new UnitOfWork(ExecutionUnitCallback, wfsoState);
-            _globalQueue.Enqueue(unitOfWork);
+            _globalQueue.Enqueue(unitOfWork, false);
         }
         
         private bool CreateAdditionalThreadImpl()
@@ -132,7 +130,7 @@ namespace DevTools.Threading
 
             if (threadSegment != default)
             {
-                var segmentLogic = new TThreadWrapperType();
+                var segmentLogic = new SimpleLogic();
                 var strategy = new SimpleThreadPoolThreadLifetimeStrategy(threadSegment, _globalStrategy);
                 segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
                 return true;

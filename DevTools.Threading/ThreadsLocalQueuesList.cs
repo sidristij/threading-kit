@@ -1,24 +1,21 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 
 namespace DevTools.Threading
 {
-    internal class WorkStealingQueueList
+    internal class ThreadsLocalQueuesList
     {
-        private volatile WorkStealingQueue[] _queues = new WorkStealingQueue[0];
+        internal volatile CQueue[] _queues = new CQueue[0];
 
-        public WorkStealingQueue[] Queues => _queues;
-
-        public void Add(WorkStealingQueue queue)
+        public void Add(CQueue queue)
         {
-            Debug.Assert(queue != null);
             while (true)
             {
                 var oldQueues = _queues;
-                Debug.Assert(Array.IndexOf(oldQueues, queue) == -1);
 
-                var newQueues = new WorkStealingQueue[oldQueues.Length + 1];
+                var newQueues = new CQueue[oldQueues.Length + 1];
                 Array.Copy(oldQueues, newQueues, oldQueues.Length);
                 newQueues[^1] = queue;
                 if (Interlocked.CompareExchange(ref _queues, newQueues, oldQueues) == oldQueues)
@@ -28,12 +25,11 @@ namespace DevTools.Threading
             }
         }
 
-        public void Remove(WorkStealingQueue queue)
+        public void Remove(CQueue queue)
         {
-            Debug.Assert(queue != null);
             while (true)
             {
-                WorkStealingQueue[] oldQueues = _queues;
+                var oldQueues = _queues;
                 if (oldQueues.Length == 0)
                 {
                     return;
@@ -46,7 +42,7 @@ namespace DevTools.Threading
                     return;
                 }
 
-                var newQueues = new WorkStealingQueue[oldQueues.Length - 1];
+                var newQueues = new CQueue[oldQueues.Length - 1];
                 if (pos == 0)
                 {
                     Array.Copy(oldQueues, 1, newQueues, 0, newQueues.Length);

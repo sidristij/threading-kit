@@ -9,7 +9,6 @@ namespace DevTools.Threading
         private readonly long MinIntervalBetweenStops =  (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
         private readonly long MinIntervalBetweenStarts =  (200 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
 
-        private long divto = Stopwatch.Frequency;  // <- to ms
         private readonly CyclicQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 

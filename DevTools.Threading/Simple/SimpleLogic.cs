@@ -1,8 +1,8 @@
 namespace DevTools.Threading
 {
-    public class SimpleLogic : SimplifiedLogicBase<int>
+    public class SimpleLogic : SimplifiedLogicBase
     {
-        private int x;
+        private ulong x;
 
         public SimpleLogic()
         {

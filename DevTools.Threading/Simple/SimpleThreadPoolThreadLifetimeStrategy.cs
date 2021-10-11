@@ -21,7 +21,6 @@ namespace DevTools.Threading
         public bool CheckCanContinueWork(int globalQueueCount, int workitemsDone, long range_µs)
         {
             var immediateNothing = (range_µs < 0) && workitemsDone == 0;
-            var gotNothingOnLoop = range_µs >= 0 && workitemsDone == 0;
             var currentBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
             
             // has work: just remember timestamp
