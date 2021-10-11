@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Threading;
-using DevTools.Threadinglf;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {
@@ -121,7 +121,7 @@ namespace DevTools.Threading
 
                 if (segment != default)
                 {
-                    while (segment.TryDequeueUnsafe(out workItem))
+                    while (segment.JetTryDequeue(out workItem))
                     {
                         OnRun(workItem);
                         unitsOfWorkCounter++;

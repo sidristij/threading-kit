@@ -5,12 +5,18 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using DevTools.Threading;
 
-namespace DevTools.Threadinglf
+namespace DevTools.Threading
 {
     /// <summary>
     /// Moved from .NET Core sources
     /// </summary>
     /// <typeparam name="T"></typeparam>
+    /// <summary>
+    /// Provides a multi-producer, multi-consumer thread-safe bounded segment.  When the queue is full,
+    /// enqueues fail and return false.  When the queue is empty, dequeues fail and return null.
+    /// These segments are linked together to form the unbounded <see cref="ConcurrentQueue{T}"/>.
+    /// </summary>
+    [DebuggerDisplay("Capacity = {Capacity}")]
     internal sealed class ConcurrentQueueSegment<T>
     {
         // Segment design is inspired by the algorithm outlined at:
@@ -98,30 +104,29 @@ namespace DevTools.Threadinglf
             }
         }
 
-        public bool TryDequeueUnsafe(out T workItem)
+        /// <summary>Tries to dequeue an element from the queue.</summary>
+        public bool JetTryDequeue([MaybeNullWhen(false)] out T item)
         {
-            var slots = _slots;
-            var currentHead = Volatile.Read(ref _headAndTail.Head);
-            var slotsIndex = currentHead & _slotsMask;
-            var sequenceNumber = slots[slotsIndex].SequenceNumber;
-            var diff = sequenceNumber - (currentHead + 1);
+            Slot[] slots = _slots;
+ 
+            SpinWait spinner = default;
+            int currentHead = _headAndTail.Head;
+            int slotsIndex = currentHead & _slotsMask;
+            int sequenceNumber = slots[slotsIndex].SequenceNumber;
+            int diff = sequenceNumber - (currentHead + 1);
             if (diff == 0)
             {
                 _headAndTail.Head = currentHead + 1;
-                workItem = slots[slotsIndex].Item;
-                if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-                {
-                    slots[slotsIndex].Item = default;
-                }
-                slots[slotsIndex].SequenceNumber = currentHead + slots.Length;
+                item = slots[slotsIndex].Item;
+                slots[slotsIndex].Item = default; 
+                Volatile.Write(ref slots[slotsIndex].SequenceNumber, currentHead + slots.Length);
                 return true;
             }
 
-            workItem = default;
+            item = default;
             return false;
         }
- 
-        /// <summary>Tries to dequeue an element from the queue.</summary>
+        
         public bool TryDequeue([MaybeNullWhen(false)] out T item)
         {
             Slot[] slots = _slots;

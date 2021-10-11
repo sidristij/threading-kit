@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
-using DevTools.Threadinglf;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {
@@ -10,7 +9,7 @@ namespace DevTools.Threading
         // Global queue of tasks with high cost of getting items
         // private readonly ConcurrentQueue<UnitOfWork> _workQueue = new();
         private readonly ConcurrentQueueWithSegmentsAccess<UnitOfWork> _workQueue = new();
-        private volatile int _parallelCounter = 0;
+        private volatile int _parallelCounter;
         
         // Set of local for each thread queues
         private readonly ThreadsLocalQueuesList _stealingQueue = new();
@@ -43,7 +42,7 @@ namespace DevTools.Threading
             var tl = ThreadLocals.instance;
             var localWsq = tl.LocalQueue;
 
-            if (tl.LocalQueue.TryDequeue(out unitOfWork) == false)
+            if (!tl.LocalQueue.HasAny && tl.LocalQueue.TryDequeue(out unitOfWork) == false)
             {
                 if (_workQueue.TryDequeueSegment(out segment) == false)
                 {

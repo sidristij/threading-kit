@@ -21,7 +21,7 @@ namespace DevTools.Threading.Collections
         public bool HasAny
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _head.next == default;
+            get => _head.next != default;
         }
 
         public void Enqueue(UnitOfWork element)

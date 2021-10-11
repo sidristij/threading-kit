@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
+    public class SmartThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
     {
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
@@ -19,7 +19,7 @@ namespace DevTools.Threading
         private readonly IThreadPoolLifetimeStrategy _globalStrategy;
         private volatile int _threadsCounter = 0;
         
-        public SimpleThreadPool()
+        public SmartThreadPool()
         {
             SynchronizationContext = new DedicatedSynchronizationContext(this);
             _globalStrategy = new SimpleThreadPoolLifetimeStrategy(this);
