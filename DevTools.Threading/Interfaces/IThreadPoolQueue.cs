@@ -1,11 +1,13 @@
+using DevTools.Threadinglf;
+
 namespace DevTools.Threading
 {
-    public interface IThreadPoolQueue
+    internal interface IThreadPoolQueue
     {
         int GlobalCount { get; }
         
         public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal = false);
         
-        public UnitOfWork Dequeue(ref bool missedSteal);
+        public void Dequeue(ref UnitOfWork single, ref ConcurrentQueueSegment<UnitOfWork> many);
     }
 }

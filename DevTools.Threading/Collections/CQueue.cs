@@ -2,9 +2,9 @@
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace DevTools.Threading
+namespace DevTools.Threading.Collections
 {
-    [StructLayout(LayoutKind.Explicit, Size = CACHE_LINE_SIZE * 4)]
+    [StructLayout(LayoutKind.Explicit, Size = CACHE_LINE_SIZE * 3)]
     public class CQueue
     {
         internal const int CACHE_LINE_SIZE = 64;
@@ -12,12 +12,10 @@ namespace DevTools.Threading
         private volatile Node _head;
         [FieldOffset(CACHE_LINE_SIZE * 2)]
         private volatile Node _tail;
-        [FieldOffset(CACHE_LINE_SIZE * 3)]
-        private volatile Node _tmp;
 
         public CQueue()
         {
-            _head = _tail = _tmp = new Node(default);
+            _head = _tail = new Node(default);
         }
 
         public bool HasAny
@@ -44,7 +42,6 @@ namespace DevTools.Threading
 
         public bool TryDequeue(out UnitOfWork element)
         {
-            // skip barrier
             Node current;
 
             do
@@ -62,16 +59,19 @@ namespace DevTools.Threading
             return true;
         }
 
+        [StructLayout(LayoutKind.Explicit, Size = CACHE_LINE_SIZE * 4)]
         private class Node
         {
+            [FieldOffset(CACHE_LINE_SIZE * 1)]
+            public Node next;
+            [FieldOffset(CACHE_LINE_SIZE * 2)]
+            public UnitOfWork value;
+            
             public Node(UnitOfWork val)
             {
                 value = val;
             }
-		
-            public Node next;
-            public UnitOfWork value;
-
+            
             public override string ToString()
             {
                 const string nil = "nil";

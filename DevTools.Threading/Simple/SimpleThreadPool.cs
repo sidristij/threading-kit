@@ -10,7 +10,7 @@ namespace DevTools.Threading
     {
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
-        private readonly int MinAllowedThreads = 24;
+        private readonly int MinAllowedThreads = 4;
         private readonly SimpleQueue _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();

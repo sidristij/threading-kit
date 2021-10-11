@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using DevTools.Threadinglf;
 
 namespace DevTools.Threading
 {
-    public class SimpleQueue : IThreadPoolQueue, IThreadPoolInternalData
+    internal class SimpleQueue : IThreadPoolQueue, IThreadPoolInternalData
     {
         // Global queue of tasks with high cost of getting items
-        private readonly ConcurrentQueue<UnitOfWork> _workQueue = new();
+        // private readonly ConcurrentQueue<UnitOfWork> _workQueue = new();
+        private readonly ConcurrentQueueWithSegmentsAccess<UnitOfWork> _workQueue = new();
         private volatile int _parallelCounter = 0;
         
         // Set of local for each thread queues
@@ -36,45 +38,49 @@ namespace DevTools.Threading
             }
         }
 
-        public UnitOfWork Dequeue(ref bool missedSteal)
+        public void Dequeue(ref UnitOfWork unitOfWork, ref ConcurrentQueueSegment<UnitOfWork> segment)
         {
-            UnitOfWork unitOfWork;
             var tl = ThreadLocals.instance;
             var localWsq = tl.LocalQueue;
 
             if (tl.LocalQueue.TryDequeue(out unitOfWork) == false)
             {
-                if (_workQueue.TryDequeue(out unitOfWork) == false)
+                if (_workQueue.TryDequeueSegment(out segment) == false)
                 {
-                    var queues = _stealingQueue._queues;
-                    var c = queues.Length;
-                    var maxIndex = c - 1;
-                    var i = Environment.TickCount % c;
-                    var stopAt = Math.Max(0, c - 2);
-                    
-                    // nothing to do: try to steal work from other queues
-                    while (c > stopAt)
+                    if (_workQueue.TryDequeue(out unitOfWork) == false)
                     {
-                        i = (i < maxIndex) ? i + 1 : 0;
-                        var otherQueue = queues[i];
-                        if (otherQueue != localWsq && otherQueue.HasAny && otherQueue.TryDequeue(out unitOfWork))
-                        {
-                            if (unitOfWork.InternalObjectIndex != 0)
-                            {
-                                return unitOfWork;
-                            }
-                        }
+                        var queues = _stealingQueue._queues;
+                        var c = queues.Length;
+                        var maxIndex = c - 1;
+                        var i = Environment.TickCount % c;
+                        var stopAt = Math.Max(0, c - 2);
                     
-                        c--;
+                        // nothing to do: try to steal work from other queues
+                        while (c > stopAt)
+                        {
+                            i = (i < maxIndex) ? i + 1 : 0;
+                            var otherQueue = queues[i];
+                            if (otherQueue != localWsq && otherQueue.HasAny && otherQueue.TryDequeue(out unitOfWork))
+                            {
+                                if (unitOfWork.InternalObjectIndex != 0)
+                                {
+                                    return;
+                                }
+                            }
+                    
+                            c--;
+                        }
+                    }
+                    else
+                    {
+                        Interlocked.Decrement(ref _parallelCounter);
                     }
                 }
                 else
                 {
-                    Interlocked.Decrement(ref _parallelCounter);
+                    Interlocked.Add(ref _parallelCounter, 0 - segment.Capacity);
                 }
             }
-
-            return unitOfWork;
         }
     }
 }

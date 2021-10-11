@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Concurrent;
+using DevTools.Threading.Collections;
 
 namespace DevTools.Threading
 {

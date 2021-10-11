@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Threading;
+using DevTools.Threadinglf;
 
 namespace DevTools.Threading
 {
@@ -13,7 +14,7 @@ namespace DevTools.Threading
 
         private readonly long DispatchQuantum_µs = (30 * Time.ticks_to_ms) / Time.ticks_to_µs;
         
-        public void InitializeAndStart(
+        internal void InitializeAndStart(
             IThreadPool threadPool,
             IThreadPoolQueue globalQueue,
             IThreadPoolThreadLifetimeStrategy lifetimeStrategy,
@@ -28,8 +29,8 @@ namespace DevTools.Threading
         }
 
         protected IThreadPool ThreadPool => _threadPool;
-        protected IThreadPoolQueue ThreadPoolQueue => _globalQueue;
         protected IExecutionSegment ExecutionSegment => _executionSegment;
+        private IThreadPoolQueue ThreadPoolQueue => _globalQueue;
         
         private void SegmentWorker(object ctx)
         {
@@ -87,24 +88,8 @@ namespace DevTools.Threading
             var tl = ThreadLocals.instance;
             int unitsOfWorkCounter = 0;
 
-            UnitOfWork workItem;
-            {
-                var missedSteal = false;
-                workItem = workQueue.Dequeue(ref missedSteal);
-
-                if (workItem.InternalObjectIndex == 0)
-                {
-                    hasWork = false;
-                    
-                    if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, 0, -1) == false)
-                    {
-                        tl.TransferLocalWork();
-                        askedToFinishThread = true;
-                    }
-                    return;
-                }
-            }
-
+            UnitOfWork workItem = default;
+          
             //
             // Save the start time
             //
@@ -115,12 +100,13 @@ namespace DevTools.Threading
             //
             while (true)
             {
+                ConcurrentQueueSegment<UnitOfWork> segment = default;
                 if (workItem.InternalObjectIndex == 0)
                 {
                     var missedSteal = false;
-                    workItem = workQueue.Dequeue(ref missedSteal);
+                    workQueue.Dequeue(ref workItem, ref segment);
 
-                    if (workItem.InternalObjectIndex == 0)
+                    if (workItem.InternalObjectIndex == 0 && segment == default)
                     {
                         if (missedSteal)
                         {
@@ -133,9 +119,21 @@ namespace DevTools.Threading
                     hasWork = true;
                 }
 
-                OnRun(workItem);
-                unitsOfWorkCounter++;
-                workItem = default;
+                if (segment != default)
+                {
+                    while (segment.TryDequeueUnsafe(out workItem))
+                    {
+                        OnRun(workItem);
+                        unitsOfWorkCounter++;
+                    }
+                    
+                }
+                else
+                {
+                    OnRun(workItem);
+                    unitsOfWorkCounter++;
+                    workItem = default;
+                }
 
                 // Check if the dispatch quantum has expired
                 var elapsed_µs = (Stopwatch.GetTimestamp() / Time.ticks_to_µs - start_in_µs) ;
