@@ -8,6 +8,6 @@ namespace DevTools.Threading
         
         public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal = false);
         
-        public void Dequeue(ref UnitOfWork single, ref ConcurrentQueueSegment<UnitOfWork> many);
+        public void Dequeue(ref UnitOfWork single);
     }
 }

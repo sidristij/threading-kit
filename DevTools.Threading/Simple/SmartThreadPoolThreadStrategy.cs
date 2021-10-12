@@ -2,14 +2,14 @@
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPoolThreadLifetimeStrategy : IThreadPoolThreadLifetimeStrategy
+    public class SmartThreadPoolThreadStrategy : IThreadPoolThreadLifetimeStrategy
     {
-        private long HasNoWorkUpperBoundThreshold = (200 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+        private long HasNoWorkUpperBoundThreshold = (250 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
         private readonly IExecutionSegment _segment;
         private readonly IThreadPoolLifetimeStrategy _poolStrategy;
         private long _hasWorkBreakpoint;
 
-        public SimpleThreadPoolThreadLifetimeStrategy(
+        public SmartThreadPoolThreadStrategy(
             IExecutionSegment segment,
             IThreadPoolLifetimeStrategy poolStrategy)
         {
@@ -21,7 +21,7 @@ namespace DevTools.Threading
         public bool CheckCanContinueWork(int globalQueueCount, int workitemsDone, long range_µs)
         {
             var immediateNothing = (range_µs < 0) && workitemsDone == 0;
-            var currentBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
+            var currentBreakpoint = Stopwatch.GetTimestamp() >> Time.ticks_to_µs_shift;
             
             // has work: just remember timestamp
             if (workitemsDone > 0)

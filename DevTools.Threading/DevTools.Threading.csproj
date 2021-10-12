@@ -8,4 +8,8 @@
       <PackageReference Include="DevTools.MemoryPools" Version="1.1.0.5" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Collections" />
+    </ItemGroup>
+
 </Project>

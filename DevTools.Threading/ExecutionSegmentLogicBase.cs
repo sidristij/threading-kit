@@ -1,13 +1,12 @@
 using System.Diagnostics;
 using System.Threading;
-using DevTools.Threading;
 
 namespace DevTools.Threading
 {
     public abstract class ExecutionSegmentLogicBase
     {
         private IThreadPool _threadPool;
-        private IThreadPoolQueue _globalQueue;
+        private SmartThreadPoolQueue _globalQueue;
         private IExecutionSegment _executionSegment;
         private IThreadPoolThreadLifetimeStrategy _lifetimeStrategy;
         private ManualResetEvent _stoppedEvent;
@@ -16,7 +15,7 @@ namespace DevTools.Threading
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
-            IThreadPoolQueue globalQueue,
+            SmartThreadPoolQueue globalQueue,
             IThreadPoolThreadLifetimeStrategy lifetimeStrategy,
             IExecutionSegment executionSegment)
         {
@@ -28,8 +27,6 @@ namespace DevTools.Threading
             _executionSegment.SetExecutingUnit(SegmentWorker);
         }
 
-        protected IThreadPool ThreadPool => _threadPool;
-        protected IExecutionSegment ExecutionSegment => _executionSegment;
         private IThreadPoolQueue ThreadPoolQueue => _globalQueue;
         
         private void SegmentWorker(object ctx)
@@ -68,7 +65,8 @@ namespace DevTools.Threading
             
             // Make stopping logic
             OnStopping();
-
+            
+            ThreadLocals.instance = default;
             _stoppedEvent.Set();
             _stoppedEvent.Dispose();
         }
@@ -86,57 +84,32 @@ namespace DevTools.Threading
         {
             var workQueue = _globalQueue;
             var tl = ThreadLocals.instance;
-            int unitsOfWorkCounter = 0;
+            var unitsOfWorkCounter = 0;
+            var missedSteal = false;
 
             UnitOfWork workItem = default;
           
             //
             // Save the start time
-            //
             var start_in_µs = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
 
             //
             // Loop until our quantum expires or there is no work.
-            //
-            while (true)
+            while (askedToFinishThread == false)
             {
-                ConcurrentQueueSegment<UnitOfWork> segment = default;
+                workQueue.Dequeue(ref workItem);
                 if (workItem.InternalObjectIndex == 0)
                 {
-                    var missedSteal = false;
-                    workQueue.Dequeue(ref workItem, ref segment);
-
-                    if (workItem.InternalObjectIndex == 0 && segment == default)
-                    {
-                        if (missedSteal)
-                        {
-                            hasWork = true;
-                            break;
-                        }
-                        // hasWork == false, askedToRemoveThread == false
-                        return;
-                    }
-                    hasWork = true;
+                    break;
                 }
-
-                if (segment != default)
-                {
-                    while (segment.JetTryDequeue(out workItem))
-                    {
-                        OnRun(workItem);
-                        unitsOfWorkCounter++;
-                    }
-                    
-                }
-                else
-                {
-                    OnRun(workItem);
-                    unitsOfWorkCounter++;
-                    workItem = default;
-                }
+                
+                hasWork = true;
+                OnRun(workItem);
+                unitsOfWorkCounter++;
+                workItem = default;
 
                 // Check if the dispatch quantum has expired
-                var elapsed_µs = (Stopwatch.GetTimestamp() / Time.ticks_to_µs - start_in_µs) ;
+                var elapsed_µs = (Stopwatch.GetTimestamp() >> Time.ticks_to_µs_shift) - start_in_µs;
                 if (elapsed_µs < DispatchQuantum_µs)
                 {
                     continue;
@@ -147,13 +120,6 @@ namespace DevTools.Threading
                     tl.TransferLocalWork();
                     askedToFinishThread = true;
                 }
-                break;
-            }
-
-            // if nothing was done
-            if (unitsOfWorkCounter == 0 && hasWork == false)
-            {
-                // _lifetimeStrategy.NotifyUnitOfWorkCycleFinished()
             }
         }
     }

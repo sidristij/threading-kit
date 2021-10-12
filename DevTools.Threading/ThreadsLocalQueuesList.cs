@@ -2,21 +2,20 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
-using DevTools.Threading.Collections;
 
 namespace DevTools.Threading
 {
     internal class ThreadsLocalQueuesList
     {
-        internal volatile CQueue[] _queues = new CQueue[0];
+        internal volatile ConcurrentQueue<UnitOfWork>[] _queues = new ConcurrentQueue<UnitOfWork>[0];
 
-        public void Add(CQueue queue)
+        public void Add(ConcurrentQueue<UnitOfWork> queue)
         {
             while (true)
             {
                 var oldQueues = _queues;
 
-                var newQueues = new CQueue[oldQueues.Length + 1];
+                var newQueues = new ConcurrentQueue<UnitOfWork>[oldQueues.Length + 1];
                 Array.Copy(oldQueues, newQueues, oldQueues.Length);
                 newQueues[^1] = queue;
                 if (Interlocked.CompareExchange(ref _queues, newQueues, oldQueues) == oldQueues)
@@ -26,7 +25,7 @@ namespace DevTools.Threading
             }
         }
 
-        public void Remove(CQueue queue)
+        public void Remove(ConcurrentQueue<UnitOfWork> queue)
         {
             while (true)
             {
@@ -43,7 +42,7 @@ namespace DevTools.Threading
                     return;
                 }
 
-                var newQueues = new CQueue[oldQueues.Length - 1];
+                var newQueues = new ConcurrentQueue<UnitOfWork>[oldQueues.Length - 1];
                 if (pos == 0)
                 {
                     Array.Copy(oldQueues, 1, newQueues, 0, newQueues.Length);

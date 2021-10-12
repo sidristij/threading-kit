@@ -1,10 +1,10 @@
 namespace DevTools.Threading
 {
-    public class SimpleLogic : SimplifiedLogicBase
+    public class SmartThreadPoolLogic : SimplifiedLogicBase
     {
         private ulong x;
 
-        public SimpleLogic()
+        public SmartThreadPoolLogic()
         {
             x = 1;
         }

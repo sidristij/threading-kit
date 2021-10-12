@@ -1,5 +1,5 @@
 ﻿using System;
-using DevTools.Threading.Collections;
+using System.Collections.Concurrent;
 
 namespace DevTools.Threading
 {
@@ -8,7 +8,7 @@ namespace DevTools.Threading
         [ThreadStatic]
         public static ThreadLocals? instance;
         public readonly IThreadPoolQueue GlobalQueue;
-        public readonly CQueue LocalQueue;
+        public ConcurrentQueue<UnitOfWork> LocalQueue;
 
         private readonly ThreadsLocalQueuesList _queueList;
 

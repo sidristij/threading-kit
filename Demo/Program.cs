@@ -7,61 +7,79 @@ namespace Demo
 {
     class Program
     {
+        private const int count = 10_000_000;
         static void Main(string[] args)
         {
-            var pool = new SmartThreadPool<ulong>();
+            var pool = new SmartThreadPool<ulong>(1,1);
             pool.InitializedWaitHandle.WaitOne();
 
-            // TestRegularPool();
-            // TestSimplePool(pool);
-
             var netPool = false;
-
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-            if (netPool) TestRegularPool();
-            TestSimplePool(pool);
-
-            // Console.ReadKey();
-
-            // TestSimplePool(pool);
-
+            var ourPool = true;
+            
+            var sum_regular = 0;
+            var sum_smart = 0;
+            var first = true;
+            var first2 = true;
+            for (int i = 0; i < 5; i++)
+            {
+                if (netPool)
+                {
+                    var res = TestRegularPool();
+                    if (!first)
+                        sum_regular += res;
+                    else
+                        first = false;
+                }
+                if (ourPool)
+                {
+                    var res2 = TestSimplePool(pool);
+                    if (!first2)
+                        sum_smart += res2;
+                    else
+                        first2 = false;
+                }
+            }
+            
+            if (sum_regular > 0)
+            {
+                var percent = (sum_smart * 100) / sum_regular;
+                var res = percent - 100;
+                var sign = res >= 0 ? "+" : "";
+                Console.WriteLine($"AVG: {sign}{res} %");
+            }
+            
             Console.WriteLine("done");
         }
 
-        private static void TestRegularPool()
+        private static int TestRegularPool()
         {
             var sw = Stopwatch.StartNew();
-            var @event = new CountdownEvent(10_000_000);
-            for (var i = 0; i < 10_000_000; i++)
+            var @event = new CountdownEvent(count);
+            for (var i = 0; i < count; i++)
             {
                 ThreadPool.QueueUserWorkItem((x) => { ((CountdownEvent)x).Signal(); }, @event);
             }
 
             @event.Wait();
+            sw.Stop();
             Console.Write(sw.ElapsedMilliseconds);
-            Console.Write("  ");
+            Console.Write("\t");
+            return (int)sw.ElapsedMilliseconds;
         }
 
-        private static void TestSimplePool(IThreadPool<ulong> pool)
+        private static int TestSimplePool(IThreadPool<ulong> pool)
         {
-            var @event = new CountdownEvent(10_000_000);
+            var @event = new CountdownEvent(count);
             var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 10_000_000; i++)
+            for (var i = 0; i < count; i++)
             {
                 pool.Enqueue((arg, state) => { ((CountdownEvent)state).Signal(); }, @event);
             }
 
             @event.Wait();
+            sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds);
+            return (int)sw.ElapsedMilliseconds;
         }
     }
 }

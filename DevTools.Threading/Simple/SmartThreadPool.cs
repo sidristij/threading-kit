@@ -9,20 +9,23 @@ namespace DevTools.Threading
     public class SmartThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
     {
         private const string ManagementSegmentName = "Management segment";
-        private readonly int MaxAllowedThreads = Environment.ProcessorCount * 2;
-        private readonly int MinAllowedThreads = 4;
-        private readonly SimpleQueue _globalQueue = new();
+        private readonly int MaxAllowedThreads;
+        private readonly int MinAllowedThreads;
+        private readonly SmartThreadPoolQueue _globalQueue = new();
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
-        private readonly ManualResetEvent _event = new ManualResetEvent(false);
-        private readonly IThreadPoolLifetimeStrategy _globalStrategy;
+        private readonly ManualResetEvent _event = new(false);
+        private readonly SmartThreadPoolStrategy _globalStrategy;
         private volatile int _threadsCounter = 0;
         
-        public SmartThreadPool()
+        public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedThreads = -1)
         {
+            MinAllowedThreads = minAllowedThreads;
+            MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount*2;
+            
             SynchronizationContext = new DedicatedSynchronizationContext(this);
-            _globalStrategy = new SimpleThreadPoolLifetimeStrategy(this);
+            _globalStrategy = new SmartThreadPoolStrategy(this);
             _managementSegment.SetExecutingUnit(_ =>
             {
                 for (var i = 0; i < Environment.ProcessorCount; i++)
@@ -130,8 +133,8 @@ namespace DevTools.Threading
 
             if (threadSegment != default)
             {
-                var segmentLogic = new SimpleLogic();
-                var strategy = new SimpleThreadPoolThreadLifetimeStrategy(threadSegment, _globalStrategy);
+                var segmentLogic = new SmartThreadPoolLogic();
+                var strategy = new SmartThreadPoolThreadStrategy(threadSegment, _globalStrategy);
                 segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
                 return true;
             }

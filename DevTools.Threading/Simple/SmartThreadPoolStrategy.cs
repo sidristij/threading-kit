@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SimpleThreadPoolLifetimeStrategy : IThreadPoolLifetimeStrategy
+    public class SmartThreadPoolStrategy : IThreadPoolLifetimeStrategy
     {
         private readonly long MinIntervalToStartWorkitem = (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
         private readonly long MinIntervalBetweenStops =  (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
@@ -16,7 +16,7 @@ namespace DevTools.Threading
         private long LastStartBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
         private object _threadCreationLock = new object();
 
-        public SimpleThreadPoolLifetimeStrategy(IThreadPoolThreadsManagement threadsManagement)
+        public SmartThreadPoolStrategy(IThreadPoolThreadsManagement threadsManagement)
         {
             _threadsManagement = threadsManagement;
         }
