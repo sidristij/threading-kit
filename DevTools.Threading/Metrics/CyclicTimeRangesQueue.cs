@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    internal class CyclicQueue
+    internal class CyclicTimeRangesQueue
     {
         private readonly Wrapper[] _array;
         private volatile int _pos = 0;
@@ -12,7 +12,7 @@ namespace DevTools.Threading
         private readonly int _length;
         private readonly int _lastIndex;
 
-        public CyclicQueue()
+        public CyclicTimeRangesQueue()
         {
             _array = new Wrapper[32];
             _length = 32;

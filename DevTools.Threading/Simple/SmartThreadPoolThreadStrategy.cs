@@ -1,19 +1,17 @@
-﻿using System.Diagnostics;
-
-namespace DevTools.Threading
+﻿namespace DevTools.Threading
 {
     public class SmartThreadPoolThreadStrategy : IThreadPoolThreadLifetimeStrategy
     {
-        private long HasNoWorkUpperBoundThreshold = (250 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+        private long HasNoWorkUpperBoundThreshold_µs = TimeConsts.ms_to_µs(250);
         private readonly IExecutionSegment _segment;
         private readonly IThreadPoolLifetimeStrategy _poolStrategy;
-        private long _hasWorkBreakpoint;
+        private long _hasWorkBreakpoint_µs;
 
         public SmartThreadPoolThreadStrategy(
             IExecutionSegment segment,
             IThreadPoolLifetimeStrategy poolStrategy)
         {
-            _hasWorkBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
+            _hasWorkBreakpoint_µs = TimeConsts.GetTimestamp_µs();
             _segment = segment;
             _poolStrategy = poolStrategy;
         }
@@ -21,24 +19,25 @@ namespace DevTools.Threading
         public bool CheckCanContinueWork(int globalQueueCount, int workitemsDone, long range_µs)
         {
             var immediateNothing = (range_µs < 0) && workitemsDone == 0;
-            var currentBreakpoint = Stopwatch.GetTimestamp() >> Time.ticks_to_µs_shift;
+            var currentBreakpoint_µs = TimeConsts.GetTimestamp_µs();
             
             // has work: just remember timestamp
             if (workitemsDone > 0)
             {
                 _poolStrategy.RequestForThreadStartIfNeed(globalQueueCount, workitemsDone, range_µs);
-                _hasWorkBreakpoint = currentBreakpoint;
+                _hasWorkBreakpoint_µs = currentBreakpoint_µs;
                 return true;
             }
 
             // has no work: calculate time interval for this state
             // and if interval is too high, allow to stop thread (parent is spinning)
-            if (currentBreakpoint - _hasWorkBreakpoint > HasNoWorkUpperBoundThreshold)
+            if (currentBreakpoint_µs - _hasWorkBreakpoint_µs > HasNoWorkUpperBoundThreshold_µs)
             {
                 if (immediateNothing)
                 {
                     // reset timer
-                    _hasWorkBreakpoint = currentBreakpoint;
+                    _hasWorkBreakpoint_µs = currentBreakpoint_µs;
+                    // ask for thread stop from global strategy
                     return _poolStrategy.RequestForThreadStop(_segment, globalQueueCount, workitemsDone, range_µs) == false;
                 }
             }

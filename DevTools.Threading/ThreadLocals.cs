@@ -6,7 +6,7 @@ namespace DevTools.Threading
     internal sealed class ThreadLocals
     {
         [ThreadStatic]
-        public static ThreadLocals? instance;
+        public static ThreadLocals instance;
         public readonly IThreadPoolQueue GlobalQueue;
         public ConcurrentQueue<UnitOfWork> LocalQueue;
 

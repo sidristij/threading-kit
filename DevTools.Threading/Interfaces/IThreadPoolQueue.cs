@@ -1,5 +1,3 @@
-using DevTools.Threading;
-
 namespace DevTools.Threading
 {
     internal interface IThreadPoolQueue

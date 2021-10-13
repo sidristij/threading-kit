@@ -11,7 +11,8 @@ namespace DevTools.Threading
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads;
         private readonly int MinAllowedThreads;
-        private readonly SmartThreadPoolQueue _globalQueue = new();
+        private readonly SmartThreadPoolQueue _globalQueue;
+        private readonly SmartThreadPoolQueue[] _queues = new SmartThreadPoolQueue[Math.Abs((int)ThreadPoolItemPriority.High - (int)ThreadPoolItemPriority.Low)];
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
@@ -22,13 +23,20 @@ namespace DevTools.Threading
         public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedThreads = -1)
         {
             MinAllowedThreads = minAllowedThreads;
-            MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount*2;
-            
+            MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount * 2;
             SynchronizationContext = new DedicatedSynchronizationContext(this);
+
+            for (int i = 0; i < _queues.Length; i++)
+            {
+                _queues[i] = new SmartThreadPoolQueue();
+            }
+
+            _globalQueue = _queues[(int)ThreadPoolItemPriority.Default];
+            
             _globalStrategy = new SmartThreadPoolStrategy(this);
             _managementSegment.SetExecutingUnit(_ =>
             {
-                for (var i = 0; i < Environment.ProcessorCount; i++)
+                for (var i = 0; i < MaxAllowedThreads; i++)
                 {
                     CreateAdditionalThreadImpl();
                 }
@@ -85,7 +93,7 @@ namespace DevTools.Threading
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, state);
-            _globalQueue.Enqueue(unitOfWork, false);
+            _queues[(int)priority].Enqueue(unitOfWork, false);
         }
 
         public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)

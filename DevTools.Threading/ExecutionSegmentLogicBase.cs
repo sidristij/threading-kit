@@ -11,7 +11,7 @@ namespace DevTools.Threading
         private IThreadPoolThreadLifetimeStrategy _lifetimeStrategy;
         private ManualResetEvent _stoppedEvent;
 
-        private readonly long DispatchQuantum_µs = (30 * Time.ticks_to_ms) / Time.ticks_to_µs;
+        private readonly long DispatchQuantum_µs = TimeConsts.ms_to_µs(30);
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
@@ -54,6 +54,8 @@ namespace DevTools.Threading
             
             while (askedToRemoveThread == false)
             {
+                hasWork = false;
+                
                 // ~ 30ms to work
                 Dispatch(ref hasWork, ref askedToRemoveThread);
                 
@@ -85,36 +87,49 @@ namespace DevTools.Threading
             var workQueue = _globalQueue;
             var tl = ThreadLocals.instance;
             var unitsOfWorkCounter = 0;
-            var missedSteal = false;
-
+            var cycles = -1;
+            var elapsed_µs = -1L;
+            
             UnitOfWork workItem = default;
           
             //
             // Save the start time
-            var start_in_µs = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
+            var start_in_µs = TimeConsts.GetTimestamp_µs();
 
             //
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
+                // results 0 for first time
+                cycles++;
+                
                 workQueue.Dequeue(ref workItem);
-                if (workItem.InternalObjectIndex == 0)
+
+                if(workItem.InternalObjectIndex != 0)
                 {
+                    hasWork = true;
+                    OnRun(workItem);
+                    unitsOfWorkCounter++;
+                    // workItem = default;
+                }
+                else
+                {
+                    if (unitsOfWorkCounter == 0)
+                    {
+                        goto ImmediateNothing;
+                    }
                     break;
                 }
                 
-                hasWork = true;
-                OnRun(workItem);
-                unitsOfWorkCounter++;
-                workItem = default;
-
                 // Check if the dispatch quantum has expired
-                var elapsed_µs = (Stopwatch.GetTimestamp() >> Time.ticks_to_µs_shift) - start_in_µs;
-                if (elapsed_µs < DispatchQuantum_µs)
+                elapsed_µs = TimeConsts.GetTimestamp_µs() - start_in_µs;
+                if (elapsed_µs < DispatchQuantum_µs && unitsOfWorkCounter > 0)
                 {
+                    elapsed_µs = 0L;
                     continue;
                 }
-
+                
+ImmediateNothing:
                 if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, elapsed_µs) == false)
                 {
                     tl.TransferLocalWork();

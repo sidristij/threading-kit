@@ -1,5 +1,6 @@
 using System.Threading;
 using DevTools.Threading;
+using DevTools.Threading.Exceptions;
 
 namespace DevTools.Threading
 {
@@ -22,7 +23,7 @@ namespace DevTools.Threading
 
         public override void Send(SendOrPostCallback d, object state)
         {
-            // ...
+            throw new ThreadPoolException($"{_threadPool.GetType().FullName} not supporting synchronous calls");
         }
     }
 }

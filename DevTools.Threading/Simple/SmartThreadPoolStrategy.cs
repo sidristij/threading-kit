@@ -1,20 +1,19 @@
-using System.Diagnostics;
 using System.Threading;
 
 namespace DevTools.Threading
 {
     public class SmartThreadPoolStrategy : IThreadPoolLifetimeStrategy
     {
-        private readonly long MinIntervalToStartWorkitem = (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
-        private readonly long MinIntervalBetweenStops =  (500 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
-        private readonly long MinIntervalBetweenStarts =  (200 * Time.ticks_to_ms) / Time.ticks_to_µs; // ms
+        private readonly long MinIntervalToStartWorkitem_µs = TimeConsts.ms_to_µs(500);
+        private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
+        private readonly long MinIntervalBetweenStarts_µs = TimeConsts.ms_to_µs(200);
 
-        private readonly CyclicQueue _valuableIntervals = new();
+        private readonly CyclicTimeRangesQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private volatile int _workitemsDoneFromLastStart = 0; 
-        private long LastStopBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
-        private long LastStartBreakpoint = Stopwatch.GetTimestamp() / Time.ticks_to_µs;
-        private object _threadCreationLock = new object();
+        private long LastStopBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+        private long LastStartBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+        private object _threadCreationLock = new();
 
         public SmartThreadPoolStrategy(IThreadPoolThreadsManagement threadsManagement)
         {
@@ -30,12 +29,12 @@ namespace DevTools.Threading
             IExecutionSegment executionSegment,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
-            var elapsed = Stopwatch.GetTimestamp() / Time.ticks_to_µs - LastStopBreakpoint;
-            if (elapsed > MinIntervalBetweenStops)
+            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStopBreakpoint_µs;
+            if (elapsed_µs > MinIntervalBetweenStops_µs)
             {
                 if(_threadsManagement.NotifyExecutionSegmentStopping(executionSegment))
                 {
-                    Interlocked.Add(ref LastStopBreakpoint, elapsed);
+                    Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
                     return true;
                 }
 
@@ -55,17 +54,17 @@ namespace DevTools.Threading
             }
 
             // check if can start new thread
-            var elapsed = Stopwatch.GetTimestamp() / Time.ticks_to_µs - LastStartBreakpoint;
-            if (elapsed > MinIntervalBetweenStarts)
+            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
+            if (elapsed_µs > MinIntervalBetweenStarts_µs)
             {
                 Interlocked.Add(ref _workitemsDoneFromLastStart, workItemsDone);
                 
-                var avgWorkitemCost = _valuableIntervals.GetAvg();
+                var avgWorkitemCost_µs = _valuableIntervals.GetAvg();
                 var parallelism = _threadsManagement.ParallelismLevel;
                 var workitemsPerThreadTheoretical = globalQueueCount / parallelism;
-                var timeToExecute = avgWorkitemCost * workitemsPerThreadTheoretical;
+                var timeToExecute_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
 
-                if (timeToExecute > MinIntervalToStartWorkitem)
+                if (timeToExecute_µs > MinIntervalToStartWorkitem_µs)
                 {
                     var locked = Monitor.TryEnter(_threadCreationLock);
                     try
@@ -87,7 +86,7 @@ namespace DevTools.Threading
                     }
                 }
                 
-                Interlocked.Add(ref LastStartBreakpoint, elapsed);
+                Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
             }
         }
     }
