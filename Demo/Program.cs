@@ -7,14 +7,17 @@ namespace Demo
 {
     class Program
     {
-        private const int count = 10_000_000;
+        private const int count = 1_000_000;
         static void Main(string[] args)
         {
-            var pool = new SmartThreadPool<ulong>(1,1);
+            var pool = new SmartThreadPool<ulong>(1, Environment.ProcessorCount);
+
             pool.InitializedWaitHandle.WaitOne();
 
-            var netPool = false;
+            // var netPool = false;
             var ourPool = true;
+            var netPool = true;
+            // var ourPool = false;
             
             var sum_regular = 0;
             var sum_smart = 0;
@@ -38,6 +41,7 @@ namespace Demo
                     else
                         first2 = false;
                 }
+                Console.WriteLine();
             }
             
             if (sum_regular > 0)
@@ -48,7 +52,8 @@ namespace Demo
                 Console.WriteLine($"AVG: {sign}{res} %");
             }
             
-            Console.WriteLine("done");
+            Console.WriteLine($"done with max = {pool.MaxThreadsGot} level of parallelism");
+            Console.ReadKey();
         }
 
         private static int TestRegularPool()
@@ -78,7 +83,7 @@ namespace Demo
 
             @event.Wait();
             sw.Stop();
-            Console.WriteLine(sw.ElapsedMilliseconds);
+            Console.Write(sw.ElapsedMilliseconds);
             return (int)sw.ElapsedMilliseconds;
         }
     }

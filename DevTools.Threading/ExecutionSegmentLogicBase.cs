@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -8,21 +7,21 @@ namespace DevTools.Threading
         private IThreadPool _threadPool;
         private SmartThreadPoolQueue _globalQueue;
         private IExecutionSegment _executionSegment;
-        private IThreadPoolThreadLifetimeStrategy _lifetimeStrategy;
+        private IThreadPoolThreadStrategy _strategy;
         private ManualResetEvent _stoppedEvent;
 
-        private readonly long DispatchQuantum_µs = TimeConsts.ms_to_µs(30);
+        private readonly long DispatchQuantum_µs = TimeConsts.ms_to_µs(50);
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
             SmartThreadPoolQueue globalQueue,
-            IThreadPoolThreadLifetimeStrategy lifetimeStrategy,
+            IThreadPoolThreadStrategy strategy,
             IExecutionSegment executionSegment)
         {
             _threadPool = threadPool;
             _globalQueue = globalQueue;
             _executionSegment = executionSegment;
-            _lifetimeStrategy = lifetimeStrategy;
+            _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
             _executionSegment.SetExecutingUnit(SegmentWorker);
         }
@@ -56,7 +55,7 @@ namespace DevTools.Threading
             {
                 hasWork = false;
                 
-                // ~ 30ms to work
+                // >= 50ms to work
                 Dispatch(ref hasWork, ref askedToRemoveThread);
                 
                 if (!hasWork)
@@ -86,14 +85,14 @@ namespace DevTools.Threading
         {
             var workQueue = _globalQueue;
             var tl = ThreadLocals.instance;
-            var unitsOfWorkCounter = 0;
+            var workCounter = 0;
             var cycles = -1;
             var elapsed_µs = -1L;
             
             UnitOfWork workItem = default;
           
             //
-            // Save the start time
+            // Save the start time of internal loop
             var start_in_µs = TimeConsts.GetTimestamp_µs();
 
             //
@@ -109,32 +108,27 @@ namespace DevTools.Threading
                 {
                     hasWork = true;
                     OnRun(workItem);
-                    unitsOfWorkCounter++;
-                    // workItem = default;
+                    workCounter++;
                 }
                 else
                 {
-                    if (unitsOfWorkCounter == 0)
-                    {
-                        goto ImmediateNothing;
-                    }
+                    // if there is no work, just ask to kill our thread
+                    // and if not, spin and continue
                     break;
                 }
                 
                 // Check if the dispatch quantum has expired
                 elapsed_µs = TimeConsts.GetTimestamp_µs() - start_in_µs;
-                if (elapsed_µs < DispatchQuantum_µs && unitsOfWorkCounter > 0)
+                if (elapsed_µs < DispatchQuantum_µs && workCounter > 0)
                 {
-                    elapsed_µs = 0L;
                     continue;
                 }
-                
-ImmediateNothing:
-                if (_lifetimeStrategy.CheckCanContinueWork(_globalQueue.GlobalCount, unitsOfWorkCounter, elapsed_µs) == false)
-                {
-                    tl.TransferLocalWork();
-                    askedToFinishThread = true;
-                }
+            }
+            
+            if (_strategy.RequestForParallelismLevelChanged(_globalQueue.GlobalCount, workCounter, elapsed_µs) == ParallelismLevelChange.Decrease)
+            {
+                tl.TransferLocalWork();
+                askedToFinishThread = true;
             }
         }
     }

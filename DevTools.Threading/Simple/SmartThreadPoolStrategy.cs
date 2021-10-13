@@ -2,7 +2,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPoolStrategy : IThreadPoolLifetimeStrategy
+    public class SmartThreadPoolStrategy : IThreadPoolStrategy
     {
         private readonly long MinIntervalToStartWorkitem_µs = TimeConsts.ms_to_µs(500);
         private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
@@ -10,9 +10,9 @@ namespace DevTools.Threading
 
         private readonly CyclicTimeRangesQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
-        private volatile int _workitemsDoneFromLastStart = 0; 
         private long LastStopBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         private long LastStartBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+        private volatile int _locked = 0;
         private object _threadCreationLock = new();
 
         public SmartThreadPoolStrategy(IThreadPoolThreadsManagement threadsManagement)
@@ -21,11 +21,50 @@ namespace DevTools.Threading
         }
         
         /// <summary>
+        /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
+        /// </summary>
+        public ParallelismLevelChange RequestForThreadStart(int globalQueueCount, int workItemsDone, long range_µs)
+        {
+            if (workItemsDone > 0)
+            {
+                _valuableIntervals.Add(range_µs / workItemsDone);
+            }
+            else
+            {
+                return ParallelismLevelChange.NoChanges;
+            }
+
+            // check if can start new thread
+            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
+            if (elapsed_µs > MinIntervalBetweenStarts_µs)
+            {
+                var avgWorkitemCost_µs = _valuableIntervals.GetAvg();
+                var parallelism = _threadsManagement.ParallelismLevel;
+                var workitemsPerThreadTheoretical = globalQueueCount / parallelism;
+                var timeToExecute_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
+
+                if (timeToExecute_µs > MinIntervalToStartWorkitem_µs)
+                {
+                    // only one thread can enter this section. Other threads will skip it 
+                    if (Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
+                    {
+                        Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
+                        _threadsManagement.CreateAdditionalExecutionSegment();
+                        Interlocked.Exchange(ref _locked, 0);
+                        return ParallelismLevelChange.Increased;
+                    }
+                }
+            }
+
+            return ParallelismLevelChange.NoChanges;
+        }
+        
+        /// <summary>
         /// Local strategy asks to stop thread because it have no work. We dont need to stop immediately
         /// all these threads because in this case we will catch situation where all threads will stop in one moment.
         /// And after this moment we can get a lot of work with no threads to get this work. So, we will stop them 1-by-1. 
         /// </summary>
-        public bool RequestForThreadStop(
+        public ParallelismLevelChange RequestForThreadStop(
             IExecutionSegment executionSegment,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
@@ -35,59 +74,12 @@ namespace DevTools.Threading
                 if(_threadsManagement.NotifyExecutionSegmentStopping(executionSegment))
                 {
                     Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
-                    return true;
+                    return ParallelismLevelChange.Decrease;
                 }
 
                 ;
             }
-            return false;
-        }
-
-        /// <summary>
-        /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
-        /// </summary>
-        public void RequestForThreadStartIfNeed(int globalQueueCount, int workItemsDone, long range_µs)
-        {
-            if (workItemsDone > 0)
-            {
-                _valuableIntervals.Add(range_µs / workItemsDone);
-            }
-
-            // check if can start new thread
-            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
-            if (elapsed_µs > MinIntervalBetweenStarts_µs)
-            {
-                Interlocked.Add(ref _workitemsDoneFromLastStart, workItemsDone);
-                
-                var avgWorkitemCost_µs = _valuableIntervals.GetAvg();
-                var parallelism = _threadsManagement.ParallelismLevel;
-                var workitemsPerThreadTheoretical = globalQueueCount / parallelism;
-                var timeToExecute_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
-
-                if (timeToExecute_µs > MinIntervalToStartWorkitem_µs)
-                {
-                    var locked = Monitor.TryEnter(_threadCreationLock);
-                    try
-                    {
-                        if (locked)
-                        {
-                            if (_threadsManagement.CreateAdditionalExecutionSegment())
-                            {
-                                Interlocked.Exchange(ref _workitemsDoneFromLastStart, 0);
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        if (locked)
-                        {
-                            Monitor.Exit(_threadCreationLock);
-                        }
-                    }
-                }
-                
-                Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
-            }
+            return ParallelismLevelChange.NoChanges;
         }
     }
 }

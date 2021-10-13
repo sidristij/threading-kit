@@ -25,7 +25,8 @@ namespace DevTools.Threading
             MinAllowedThreads = minAllowedThreads;
             MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount * 2;
             SynchronizationContext = new DedicatedSynchronizationContext(this);
-
+            MaxThreadsGot = 0;
+            
             for (int i = 0; i < _queues.Length; i++)
             {
                 _queues[i] = new SmartThreadPoolQueue();
@@ -36,7 +37,7 @@ namespace DevTools.Threading
             _globalStrategy = new SmartThreadPoolStrategy(this);
             _managementSegment.SetExecutingUnit(_ =>
             {
-                for (var i = 0; i < MaxAllowedThreads; i++)
+                for (var i = 0; i < MinAllowedThreads; i++)
                 {
                     CreateAdditionalThreadImpl();
                 }
@@ -47,37 +48,10 @@ namespace DevTools.Threading
         public SynchronizationContext SynchronizationContext { get; }
 
         public int ParallelismLevel => _segments.Count;
+        public int MaxThreadsGot { get; private set; }
 
         public WaitHandle InitializedWaitHandle => _event;
      
-        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegment()
-        {
-            _managementSegment.SetExecutingUnit(_ =>
-            {
-                if (CreateAdditionalThreadImpl())
-                {
-                    ; // log
-                }
-            });
-            return true;
-        }
-
-        bool IThreadPoolThreadsManagement.NotifyExecutionSegmentStopping(IExecutionSegment segment)
-        {
-            lock (_segments)
-            {
-                if (_segments.Count > MinAllowedThreads)
-                {
-                    _segments.Remove(segment);
-                    _parkedSegments.Enqueue(segment);
-                    return true;
-                }
-            }
-
-            // disallow action
-            return false;
-        }
-
         public void Enqueue(ExecutionUnit unit, object state = default)
         {
             var unitOfWork = new UnitOfWork(unit, state);
@@ -117,6 +91,35 @@ namespace DevTools.Threading
             _globalQueue.Enqueue(unitOfWork, false);
         }
         
+        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegment()
+        {
+            _managementSegment.SetExecutingUnit(_ =>
+            {
+                if (CreateAdditionalThreadImpl())
+                {
+                    ; // log
+                }
+            });
+            return true;
+        }
+
+        bool IThreadPoolThreadsManagement.NotifyExecutionSegmentStopping(IExecutionSegment segment)
+        {
+            lock (_segments)
+            {
+                if (_segments.Count > MinAllowedThreads)
+                {
+                    _segments.Remove(segment);
+                    _parkedSegments.Enqueue(segment);
+                    
+                    return true;
+                }
+            }
+
+            // disallow action
+            return false;
+        }
+
         private bool CreateAdditionalThreadImpl()
         {
             IExecutionSegment threadSegment = default;
@@ -144,6 +147,7 @@ namespace DevTools.Threading
                 var segmentLogic = new SmartThreadPoolLogic();
                 var strategy = new SmartThreadPoolThreadStrategy(threadSegment, _globalStrategy);
                 segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
+                MaxThreadsGot = Math.Max(MaxThreadsGot, ParallelismLevel);
                 return true;
             }
 
