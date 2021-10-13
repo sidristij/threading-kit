@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DevTools.Threading
 {
@@ -11,6 +12,7 @@ namespace DevTools.Threading
 
         public readonly IThreadPoolQueue GlobalQueue;
         public volatile int Count;
+        public volatile TaskScheduler CurrentTaskScheduler;
 
         private readonly ConcurrentQueue<UnitOfWork> _localQueue;
         private readonly ThreadsLocalQueuesList _queueList;

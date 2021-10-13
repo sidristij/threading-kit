@@ -24,7 +24,7 @@ namespace DevTools.Threading
         {
             MinAllowedThreads = minAllowedThreads;
             MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount * 2;
-            SynchronizationContext = new DedicatedSynchronizationContext(this);
+            SynchronizationContext = new SmartThreadPoolSynchronizationContext(this);
             MaxThreadsGot = 0;
             
             for (int i = 0; i < _queues.Length; i++)
@@ -54,19 +54,31 @@ namespace DevTools.Threading
      
         public void Enqueue(ExecutionUnit unit, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(unit, state);
+            var unitOfWork = new UnitOfWork(unit, state, false);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
+        }
+        
+        public void Enqueue(ExecutionUnitAsync unit, object state = default, bool preferLocal = true)
+        {
+            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, false, true);
             _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
 
         public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state);
+            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, true);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
+        }
+        
+        public void Enqueue(ExecutionUnitAsync<TPoolParameter> unit, object state = default, bool preferLocal = true)
+        {
+            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, true, true);
             _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
         
         public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(unit, state);
+            var unitOfWork = new UnitOfWork(unit, state, false);
             _queues[(int)priority].Enqueue(unitOfWork, preferLocal);
         }
 
@@ -87,7 +99,7 @@ namespace DevTools.Threading
                 workload.Delegate(workload.InternalState);
             }
 
-            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, wfsoState);
+            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, wfsoState, false);
             _globalQueue.Enqueue(unitOfWork, false);
         }
         

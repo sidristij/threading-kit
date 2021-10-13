@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using DevTools.Threading;
 
 namespace Demo
@@ -8,16 +9,37 @@ namespace Demo
     class Program
     {
         private const int count = 1_000_000;
+
+        static void Main1()
+        {
+            var pool = new SmartThreadPool<ulong>( 4, Environment.ProcessorCount);
+            var @event = new CountdownEvent(1);
+            pool.Enqueue(async (p, state) =>
+            {
+                Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+                await MethodAsync();
+                Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+                ((CountdownEvent)state).Signal();
+            }, @event, false);
+
+            @event.Wait();
+        }
+
+        async static Task MethodAsync()
+        {
+            Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+        }
+        
         static void Main(string[] args)
         {
-            var pool = new SmartThreadPool<ulong>( 1, Environment.ProcessorCount);
+            var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount);
 
             pool.InitializedWaitHandle.WaitOne();
 
             // var netPool = false;
-            var ourPool = true;
+            // var ourPool = true;
             var netPool = true;
-            // var ourPool = false;
+            var ourPool = false;
             
             var sum_regular = 0;
             var sum_smart = 0;
@@ -71,7 +93,7 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static int TestSimplePool(IThreadPool<ulong> pool)
+        private static int TestSimplePool(IThreadPool<object> pool)
         {
             var @event = new CountdownEvent(count);
             var sw = Stopwatch.StartNew();

@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DevTools.Threading
 {
@@ -42,7 +43,8 @@ namespace DevTools.Threading
 
             // Set current sync context
             SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
-
+            tl.CurrentTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+            
             // Notify user code
             OnStarted();
 
