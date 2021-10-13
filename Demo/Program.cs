@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using DevTools.Threading;
 
 namespace Demo
@@ -24,7 +23,7 @@ namespace Demo
             var sum_smart = 0;
             var first = true;
             var first2 = true;
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 20; i++)
             {
                 if (netPool)
                 {
@@ -62,7 +61,7 @@ namespace Demo
             var @event = new CountdownEvent(count);
             for (var i = 0; i < count; i++)
             {
-                ThreadPool.QueueUserWorkItem((x) => { ((CountdownEvent)x).Signal(); }, @event);
+                ThreadPool.QueueUserWorkItem((x) => { ((CountdownEvent)x).Signal(); }, @event, false);
             }
 
             @event.Wait();
@@ -81,7 +80,7 @@ namespace Demo
                 pool.Enqueue((p, state) =>
                 {
                     ((CountdownEvent)state).Signal();
-                }, @event);
+                }, @event, false);
             }
 
             @event.Wait();

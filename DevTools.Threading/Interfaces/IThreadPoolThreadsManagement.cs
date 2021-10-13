@@ -6,6 +6,6 @@ namespace DevTools.Threading
         
         bool CreateAdditionalExecutionSegment();
 
-        bool NotifyExecutionSegmentStopping(IExecutionSegment segment);
+        bool NotifyAboutExecutionSegmentStopping(IExecutionSegment segment);
     }
 }

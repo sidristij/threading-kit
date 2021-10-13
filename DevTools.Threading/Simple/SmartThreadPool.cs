@@ -52,22 +52,22 @@ namespace DevTools.Threading
 
         public WaitHandle InitializedWaitHandle => _event;
      
-        public void Enqueue(ExecutionUnit unit, object state = default)
+        public void Enqueue(ExecutionUnit unit, object state = default, bool preferLocal = true)
         {
             var unitOfWork = new UnitOfWork(unit, state);
-            _globalQueue.Enqueue(unitOfWork, false);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
 
-        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default)
+        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default, bool preferLocal = true)
         {
             var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state);
-            _globalQueue.Enqueue(unitOfWork, false);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
         
-        public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default)
+        public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default, bool preferLocal = true)
         {
             var unitOfWork = new UnitOfWork(unit, state);
-            _queues[(int)priority].Enqueue(unitOfWork, false);
+            _queues[(int)priority].Enqueue(unitOfWork, preferLocal);
         }
 
         public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)
@@ -103,7 +103,7 @@ namespace DevTools.Threading
             return true;
         }
 
-        bool IThreadPoolThreadsManagement.NotifyExecutionSegmentStopping(IExecutionSegment segment)
+        bool IThreadPoolThreadsManagement.NotifyAboutExecutionSegmentStopping(IExecutionSegment segment)
         {
             lock (_segments)
             {

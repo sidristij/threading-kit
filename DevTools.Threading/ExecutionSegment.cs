@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading;
-using DevTools.Threading;
 using DevTools.Threading.Exceptions;
 
 namespace DevTools.Threading

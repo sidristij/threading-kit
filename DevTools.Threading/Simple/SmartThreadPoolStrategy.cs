@@ -71,7 +71,7 @@ namespace DevTools.Threading
             var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStopBreakpoint_µs;
             if (elapsed_µs > MinIntervalBetweenStops_µs)
             {
-                if(_threadsManagement.NotifyExecutionSegmentStopping(executionSegment))
+                if(_threadsManagement.NotifyAboutExecutionSegmentStopping(executionSegment))
                 {
                     Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
                     return ParallelismLevelChange.Decrease;

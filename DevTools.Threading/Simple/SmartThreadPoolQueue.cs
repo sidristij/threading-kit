@@ -16,34 +16,33 @@ namespace DevTools.Threading
 
         public int GlobalCount => _parallelCounter;
 
-        public void Enqueue(UnitOfWork unitOfWork, bool forceGlobal)
+        public void Enqueue(UnitOfWork unitOfWork, bool preferLocal)
         {
-            // ThreadLocals tl = null;
-            // if (!forceGlobal)
-            // {
-            //     tl = ThreadLocals.instance;
-            // }
-            //
-            // if (tl != null)
-            // {
-            //     tl.LocalQueue.Enqueue(unitOfWork);
-            //     return;
-            // }
-            
+            if (preferLocal)
+            {
+                var tl = ThreadLocals.instance;
+                if (tl != null)
+                {
+                    tl.Enqueue(unitOfWork);
+                    Interlocked.Increment(ref _parallelCounter);
+                    return;
+                }
+            }
+
             _workQueue.Enqueue(unitOfWork);
             Interlocked.Increment(ref _parallelCounter);
         }
 
         public void Dequeue(ref UnitOfWork unitOfWork)
         {
-            // var localWsq = ThreadLocals.instance.LocalQueue;
+            var localWsq = ThreadLocals.instance;
 
             // try read local queue
-            // if (localWsq.TryDequeue(out unitOfWork))
-            // {
-            //     Interlocked.Decrement(ref _parallelCounter);
-            //     return;
-            // }
+            if (localWsq.Count > 0 && localWsq.TryDequeue(out unitOfWork))
+            {
+                Interlocked.Decrement(ref _parallelCounter);
+                return;
+            }
 
             // try read single item
             if (_workQueue.TryDequeue(out unitOfWork))

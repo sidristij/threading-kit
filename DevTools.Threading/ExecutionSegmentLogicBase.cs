@@ -119,9 +119,9 @@ namespace DevTools.Threading
                 
                 // Check if the dispatch quantum has expired
                 elapsed_µs = TimeConsts.GetTimestamp_µs() - start_in_µs;
-                if (elapsed_µs < DispatchQuantum_µs && workCounter > 0)
+                if (elapsed_µs > DispatchQuantum_µs)
                 {
-                    continue;
+                    break;
                 }
             }
             

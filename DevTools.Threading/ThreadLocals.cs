@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace DevTools.Threading
 {
@@ -7,9 +8,11 @@ namespace DevTools.Threading
     {
         [ThreadStatic]
         public static ThreadLocals instance;
-        public readonly IThreadPoolQueue GlobalQueue;
-        public ConcurrentQueue<UnitOfWork> LocalQueue;
 
+        public readonly IThreadPoolQueue GlobalQueue;
+        public volatile int Count;
+
+        private readonly ConcurrentQueue<UnitOfWork> _localQueue;
         private readonly ThreadsLocalQueuesList _queueList;
 
         public ThreadLocals(
@@ -18,13 +21,30 @@ namespace DevTools.Threading
         {
             GlobalQueue = tpq;
             _queueList = queueList;
-            LocalQueue = new();
-            _queueList.Add(LocalQueue);
+            _localQueue = new();
+            _queueList.Add(_localQueue);
+        }
+
+        public void Enqueue(UnitOfWork unitOfWork)
+        {
+            Interlocked.Increment(ref Count);
+            _localQueue.Enqueue(unitOfWork);
+        }
+        
+        public bool TryDequeue(out UnitOfWork unitOfWork)
+        {
+            if (_localQueue.TryDequeue(out unitOfWork))
+            {
+                Interlocked.Decrement(ref Count);
+                return true;
+            }
+
+            return false;
         }
 
         public void TransferLocalWork()
         {
-            while (LocalQueue.TryDequeue(out var cb))
+            while (_localQueue.TryDequeue(out var cb))
             {
                 GlobalQueue.Enqueue(cb);
             }
@@ -33,10 +53,10 @@ namespace DevTools.Threading
         ~ThreadLocals()
         {
             // Transfer any pending workitems into the global queue so that they will be executed by another thread
-            if (null != LocalQueue)
+            if (null != _localQueue)
             {
                 TransferLocalWork();
-                _queueList.Remove(LocalQueue);
+                _queueList.Remove(_localQueue);
             }
         }
     }
