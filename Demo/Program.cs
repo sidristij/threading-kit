@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using DevTools.Threading;
 
 namespace Demo
@@ -10,7 +11,7 @@ namespace Demo
         private const int count = 1_000_000;
         static void Main(string[] args)
         {
-            var pool = new SmartThreadPool<ulong>(1, Environment.ProcessorCount);
+            var pool = new SmartThreadPool<ulong>( 1, Environment.ProcessorCount);
 
             pool.InitializedWaitHandle.WaitOne();
 
@@ -53,7 +54,6 @@ namespace Demo
             }
             
             Console.WriteLine($"done with max = {pool.MaxThreadsGot} level of parallelism");
-            Console.ReadKey();
         }
 
         private static int TestRegularPool()
@@ -78,7 +78,10 @@ namespace Demo
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < count; i++)
             {
-                pool.Enqueue((arg, state) => { ((CountdownEvent)state).Signal(); }, @event);
+                pool.Enqueue((p, state) =>
+                {
+                    ((CountdownEvent)state).Signal();
+                }, @event);
             }
 
             @event.Wait();

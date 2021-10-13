@@ -22,25 +22,13 @@ namespace DevTools.Threading
             InternalObjectIndex = Interlocked.Increment(ref _internalObjectIndexCounter);
         }
 
-        public void Run()
-        {
-            try
-            {
-                Unsafe.As<ExecutionUnit<object>>(_unit).Invoke(null, _unitState);
-                this = default;
-            }
-            catch (Exception _)
-            {
-                ;
-            }
-        }
+        public void Run() => Run<object>(null);
 
         public void Run<TParam>(TParam param)
         {
             try
             {
                 Unsafe.As<ExecutionUnit<TParam>>(_unit).Invoke(param, _unitState);
-                this = default;
             }
             catch (Exception _)
             {
