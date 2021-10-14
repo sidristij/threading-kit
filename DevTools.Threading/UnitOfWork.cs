@@ -1,5 +1,3 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,23 +12,19 @@ namespace DevTools.Threading
         internal long InternalObjectIndex;
         private object _unitState;
         private ExecutionUnit _unit;
-        private bool _hasArgument;
-        internal static long _internalObjectIndexCounter = 0;
+        private static long _internalObjectIndexCounter;
         private delegate*<ref UnitOfWork, void> run_ptr;
         private delegate*<ref UnitOfWork, object, void> run_params_ptr;
 
-        public UnitOfWork([NotNull] ExecutionUnit unit, [NotNull] object state, bool hasArgument, bool async = false)
+        public UnitOfWork(ExecutionUnit unit, object state, bool hasArgument, bool async = false)
         {
             _unit = unit;
             _unitState = state;
-            _hasArgument = hasArgument;
             InternalObjectIndex = Interlocked.Increment(ref _internalObjectIndexCounter);
-            run_ptr = null;
-            run_params_ptr = null;
             run_ptr = async ? &RunInternalAsync : &RunInternal;
             run_params_ptr = async ? &RunWithParamsInternalAsync : &RunWithParamsInternal;
         }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Run() => run_ptr(ref this);
 
