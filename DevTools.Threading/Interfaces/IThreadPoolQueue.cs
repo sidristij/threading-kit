@@ -6,6 +6,6 @@ namespace DevTools.Threading
         
         public void Enqueue(UnitOfWork unitOfWork, bool preferLocal = false);
         
-        public void Dequeue(ref UnitOfWork single);
+        public bool TryDequeue(ref UnitOfWork single);
     }
 }

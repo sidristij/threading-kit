@@ -33,7 +33,7 @@ namespace DevTools.Threading
             Interlocked.Increment(ref _parallelCounter);
         }
 
-        public void Dequeue(ref UnitOfWork unitOfWork)
+        public bool TryDequeue(ref UnitOfWork unitOfWork)
         {
             var localWsq = ThreadLocals.instance;
 
@@ -41,14 +41,17 @@ namespace DevTools.Threading
             if (localWsq.Count > 0 && localWsq.TryDequeue(out unitOfWork))
             {
                 Interlocked.Decrement(ref _parallelCounter);
-                return;
+                return true;
             }
 
             // try read single item
             if (_workQueue.TryDequeue(out unitOfWork))
             {
                 Interlocked.Decrement(ref _parallelCounter);
+                return true;
             }
+
+            return false;
         }
     }
 }

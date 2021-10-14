@@ -16,7 +16,7 @@ namespace DevTools.Threading
 
         protected override void OnRun(UnitOfWork unitOfWork)
         {
-            unitOfWork.Run<object>(null);
+            unitOfWork.Run("Hello!");
         }
 
         protected override void OnStopping()

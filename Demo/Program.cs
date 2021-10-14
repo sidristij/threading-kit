@@ -37,9 +37,9 @@ namespace Demo
             pool.InitializedWaitHandle.WaitOne();
 
             // var netPool = false;
-            // var ourPool = true;
+            var ourPool = true;
             var netPool = true;
-            var ourPool = false;
+            // var ourPool = false;
             
             var sum_regular = 0;
             var sum_smart = 0;
@@ -93,13 +93,14 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static int TestSimplePool(IThreadPool<object> pool)
+        private static unsafe int TestSimplePool(IThreadPool<object> pool)
         {
             var @event = new CountdownEvent(count);
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < count; i++)
             {
-                pool.Enqueue((p, state) =>
+                // pool.Enqueue(&OnPoolTask, @event, false);
+                pool.Enqueue((val, state) =>
                 {
                     ((CountdownEvent)state).Signal();
                 }, @event, false);
@@ -109,6 +110,11 @@ namespace Demo
             sw.Stop();
             Console.Write(sw.ElapsedMilliseconds);
             return (int)sw.ElapsedMilliseconds;
+        }
+
+        private static void OnPoolTask(object state)
+        {
+            ((CountdownEvent)state).Signal();
         }
     }
 }

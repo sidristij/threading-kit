@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -52,36 +51,61 @@ namespace DevTools.Threading
 
         public WaitHandle InitializedWaitHandle => _event;
      
+        /// <summary>
+        /// Initialize with regular delegate 
+        /// </summary>
         public void Enqueue(ExecutionUnit unit, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(unit, state, false);
+            var unitOfWork = default(UnitOfWork);
+            unitOfWork.Init(unit, state);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
+        }
+        
+        /// <summary>
+        /// Initialize with regular function pointer 
+        /// </summary>
+        public unsafe void Enqueue(delegate*<object, void> unit, object state = default, bool preferLocal = true)
+        {
+            UnitOfWork unitOfWork = default;
+            unitOfWork.Init(unit, state);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
+        }
+        
+        /// <summary>
+        /// Initialize with parametrized delegate 
+        /// </summary>
+        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default, bool preferLocal = true)
+        {
+            UnitOfWork unitOfWork = default;
+            unitOfWork.Init(unit, state);
+            _globalQueue.Enqueue(unitOfWork, preferLocal);
+        }
+        
+        /// <summary>
+        /// Initialize with parametrized function pointer 
+        /// </summary>
+        public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object state = default, bool preferLocal = true)
+        {
+            UnitOfWork unitOfWork = default;
+            unitOfWork.Init((delegate*<object, object, void>)unit, state);
             _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
         
         public void Enqueue(ExecutionUnitAsync unit, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, false, true);
+            var unitOfWork = default(UnitOfWork);
+            unitOfWork.Init(unit, state);
             _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
 
-        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default, bool preferLocal = true)
-        {
-            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, true);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
-        }
         
         public void Enqueue(ExecutionUnitAsync<TPoolParameter> unit, object state = default, bool preferLocal = true)
         {
-            var unitOfWork = new UnitOfWork(Unsafe.As<ExecutionUnit>(unit), state, true, true);
+            var unitOfWork = default(UnitOfWork);
+            unitOfWork.Init(unit, state);
             _globalQueue.Enqueue(unitOfWork, preferLocal);
         }
         
-        public void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default, bool preferLocal = true)
-        {
-            var unitOfWork = new UnitOfWork(unit, state, false);
-            _queues[(int)priority].Enqueue(unitOfWork, preferLocal);
-        }
-
         public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)
         {
             var wfsoState = new WaitForSingleObjectState
@@ -99,7 +123,8 @@ namespace DevTools.Threading
                 workload.Delegate(workload.InternalState);
             }
 
-            var unitOfWork = new UnitOfWork(ExecutionUnitCallback, wfsoState, false);
+            var unitOfWork = default(UnitOfWork);
+            unitOfWork.Init(ExecutionUnitCallback, wfsoState);
             _globalQueue.Enqueue(unitOfWork, false);
         }
         

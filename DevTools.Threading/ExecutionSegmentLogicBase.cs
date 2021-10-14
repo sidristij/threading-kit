@@ -80,7 +80,7 @@ namespace DevTools.Threading
 
         protected virtual void OnRun(UnitOfWork unitOfWork)
         {
-            unitOfWork.Run();
+            unitOfWork.Run<object>(null);
         }
         
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
@@ -104,9 +104,7 @@ namespace DevTools.Threading
                 // results 0 for first time
                 cycles++;
                 
-                workQueue.Dequeue(ref workItem);
-
-                if(workItem.InternalObjectIndex != 0)
+                if(workQueue.TryDequeue(ref workItem))
                 {
                     hasWork = true;
                     OnRun(workItem);
