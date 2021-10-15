@@ -17,7 +17,6 @@ namespace DevTools.Threading
         private volatile bool _stoppingRequested = false;
         private volatile ConcurrentQueue<QueueItem> _nextActions = new();
         private readonly AutoResetEvent _event;
-        private ManualResetEvent _stoppingEvent;
 
         internal bool Freezed = false;
 
@@ -88,9 +87,6 @@ namespace DevTools.Threading
                 }
             }
 
-            // Notify awaiter if have
-            _stoppingEvent?.Set();
-
             _status = SegmentStatus.Stopped;
         }
 
@@ -104,7 +100,7 @@ namespace DevTools.Threading
             return _thread.GetHashCode();
         }
 
-        public override bool Equals(object? obj)
+        public override bool Equals(object obj)
         {
             if(obj is ExecutionSegment es)
             {

@@ -26,7 +26,6 @@ namespace DevTools.Threading
         private Timer _timer;
         private readonly TimeSpan _timerInterval = TimeSpan.FromSeconds(1);
         private volatile int _threadsCounter = 0;
-        private bool _stopped = false;
         
         public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedWorkingThreads = -1)
         {

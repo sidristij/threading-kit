@@ -25,7 +25,7 @@ namespace Demo
             @event.Wait();
         }
         
-        static void Main()
+        static void Main2()
         {
             var pool = new SmartThreadPool<ulong>(4, 4);
             var @event = new CountdownEvent(5);
@@ -56,7 +56,7 @@ namespace Demo
             Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
         }
         
-        static void Main2(string[] args)
+        static void Main(string[] args)
         {
             var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount);
 

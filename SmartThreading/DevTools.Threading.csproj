@@ -5,8 +5,4 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
-    <ItemGroup>
-      <PackageReference Include="DevTools.MemoryPools" Version="1.1.0.5" />
-    </ItemGroup>
-
 </Project>
