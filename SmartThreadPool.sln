@@ -1,8 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+#
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{B527396C-68B9-411E-B525-C4C0A9D73D2D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools.Threading", "DevTools.Threading\DevTools.Threading.csproj", "{C1659552-F697-40FE-9F74-0A519795F7C8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevTools.Threading", "SmartThreading\DevTools.Threading.csproj", "{4B26EB30-C19D-4218-8FF5-8D3505FA854A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,9 +15,9 @@ Global
 		{B527396C-68B9-411E-B525-C4C0A9D73D2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B527396C-68B9-411E-B525-C4C0A9D73D2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B527396C-68B9-411E-B525-C4C0A9D73D2D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C1659552-F697-40FE-9F74-0A519795F7C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C1659552-F697-40FE-9F74-0A519795F7C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C1659552-F697-40FE-9F74-0A519795F7C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C1659552-F697-40FE-9F74-0A519795F7C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B26EB30-C19D-4218-8FF5-8D3505FA854A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B26EB30-C19D-4218-8FF5-8D3505FA854A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B26EB30-C19D-4218-8FF5-8D3505FA854A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B26EB30-C19D-4218-8FF5-8D3505FA854A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

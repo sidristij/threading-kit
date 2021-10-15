@@ -119,7 +119,7 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static unsafe int TestSimplePool(SmartThreadPool<object> pool)
+        private static int TestSimplePool(SmartThreadPool<object> pool)
         {
             var @event = new CountdownEvent(count);
             var sw = Stopwatch.StartNew();

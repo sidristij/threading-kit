@@ -4,8 +4,6 @@ namespace DevTools.Threading
 {
     public interface IExecutionSegment
     {
-        SegmentStatus Status { get; }
-        
         ExecutionSegmentLogicBase Logic { get; }
         
         void SetExecutingUnit(SendOrPostCallback callback);
@@ -15,16 +13,12 @@ namespace DevTools.Threading
         ThreadState GetThreadStatus();
         
         void RequestThreadStop();
-        
-        WaitHandle RequestThreadStopAndGetWaitHandle();
-        
     }
     
     public enum SegmentStatus
     {
         Running,
         Paused,
-        Freezed,
         Stopped
     }
 }

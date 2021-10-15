@@ -56,19 +56,17 @@ namespace DevTools.Threading
 
             // Set current sync context
             SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
-            tl.CurrentTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
             
             // Notify user code
             OnStarted();
 
             // work cycle
-            var hasWork = false;
             var askedToRemoveThread = false;
             var spinner = new SpinWait();
             
             while (askedToRemoveThread == false)
             {
-                hasWork = false;
+                var hasWork = false;
                 _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
                 
                 // >= 50ms to work

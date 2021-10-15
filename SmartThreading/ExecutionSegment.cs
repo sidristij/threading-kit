@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading;
-using DevTools.Threading.Exceptions;
 
 namespace DevTools.Threading
 {
@@ -34,7 +33,6 @@ namespace DevTools.Threading
             _thread.Start();
         }
 
-        public SegmentStatus Status => Freezed ? SegmentStatus.Freezed : _status;
         public ExecutionSegmentLogicBase Logic { get; private set; }
 
         public void SetExecutingUnit(SendOrPostCallback callback)
@@ -70,17 +68,6 @@ namespace DevTools.Threading
         public void RequestThreadStop()
         {
             _stoppingRequested = true;
-        }
-        
-        /// <summary>
-        /// Requests thread stop and returns awaitable handle
-        /// </summary>
-        public WaitHandle RequestThreadStopAndGetWaitHandle()
-        {
-            _stoppingEvent = new ManualResetEvent(false);
-            _stoppingRequested = true;
-            _event.Set();
-            return _stoppingEvent;
         }
 
         private void ThreadWork()

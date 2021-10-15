@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DevTools.Threading\DevTools.Threading.csproj" />
+      <ProjectReference Include="..\SmartThreading\DevTools.Threading.csproj" />
     </ItemGroup>
 
 </Project>
