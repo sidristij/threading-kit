@@ -52,7 +52,7 @@ namespace DevTools.Threading
             var index = Interlocked.Increment(ref _pos) & _lastIndex;
             Interlocked.Add(ref _sum, value - _array[index].Value);
             _array[index].Value = value;
-            _avg = _sum / _length;
+            _avg = _sum >> 5;
         }
 
         // for array access speedup

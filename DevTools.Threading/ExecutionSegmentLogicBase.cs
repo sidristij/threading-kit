@@ -10,8 +10,10 @@ namespace DevTools.Threading
         private IExecutionSegment _executionSegment;
         private IThreadPoolThreadStrategy _strategy;
         private ManualResetEvent _stoppedEvent;
+        private long _lastBreakpoint_µs;
 
         private readonly long DispatchQuantum_µs = TimeConsts.ms_to_µs(50);
+        private readonly long MaxTimeForDelegateRun_µs = TimeConsts.ms_to_µs(1500);
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
@@ -24,10 +26,21 @@ namespace DevTools.Threading
             _executionSegment = executionSegment;
             _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
-            _executionSegment.SetExecutingUnit(SegmentWorker);
+            _executionSegment.SetExecutingUnit(this, SegmentWorker);
+            _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         }
 
         private IThreadPoolQueue ThreadPoolQueue => _globalQueue;
+
+        /// <summary>
+        /// Checks that thread is blocked and delegate isn't responding for 1,5s
+        /// </summary>
+        /// <returns></returns>
+        protected internal bool CheckFrozen()
+        {
+            return ((TimeConsts.GetTimestamp_µs() - _lastBreakpoint_µs) > MaxTimeForDelegateRun_µs) &&
+                   (_executionSegment.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
+        }
         
         private void SegmentWorker(object ctx)
         {
@@ -56,6 +69,7 @@ namespace DevTools.Threading
             while (askedToRemoveThread == false)
             {
                 hasWork = false;
+                _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
                 
                 // >= 50ms to work
                 Dispatch(ref hasWork, ref askedToRemoveThread);

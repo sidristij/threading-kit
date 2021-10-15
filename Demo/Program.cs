@@ -24,13 +24,39 @@ namespace Demo
 
             @event.Wait();
         }
+        
+        static void Main()
+        {
+            var pool = new SmartThreadPool<ulong>(4, 4);
+            var @event = new CountdownEvent(5);
+            var resetEvent = new ManualResetEvent(false);
+
+            for (int i = 0; i < 4; i++)
+            {
+                pool.Enqueue(async (p, state) =>
+                {
+                    resetEvent.WaitOne();
+                    await MethodAsync();
+                    ((CountdownEvent)state).Signal();
+                }, @event, false);
+            }
+
+            pool.Enqueue(async (p, state) =>
+            {
+                resetEvent.Set();
+                await MethodAsync();
+                ((CountdownEvent)state).Signal();
+            }, @event, false);
+
+            @event.Wait();
+        }
 
         async static Task MethodAsync()
         {
             Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
         }
         
-        static void Main(string[] args)
+        static void Main2(string[] args)
         {
             var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount);
 
@@ -93,7 +119,7 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static unsafe int TestSimplePool(IThreadPool<object> pool)
+        private static unsafe int TestSimplePool(SmartThreadPool<object> pool)
         {
             var @event = new CountdownEvent(count);
             var sw = Stopwatch.StartNew();

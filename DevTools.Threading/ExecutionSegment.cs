@@ -16,12 +16,15 @@ namespace DevTools.Threading
         private readonly Thread _thread;
         private volatile SegmentStatus _status = SegmentStatus.Paused;
         private volatile bool _stoppingRequested = false;
-        private volatile ConcurrentQueue<SendOrPostCallback> _nextActions = new();
+        private volatile ConcurrentQueue<QueueItem> _nextActions = new();
         private readonly AutoResetEvent _event;
         private ManualResetEvent _stoppingEvent;
 
+        internal bool Freezed = false;
+
         public ExecutionSegment(string segmentName = default)
         {
+            Logic = default;
             _segmentName = segmentName;
             _index = Interlocked.Increment(ref _counter);
             _thread = new Thread(ThreadWork);
@@ -31,19 +34,29 @@ namespace DevTools.Threading
             _thread.Start();
         }
 
-        public SegmentStatus Status => _status;
+        public SegmentStatus Status => Freezed ? SegmentStatus.Freezed : _status;
+        public ExecutionSegmentLogicBase Logic { get; private set; }
+
+        public void SetExecutingUnit(SendOrPostCallback callback)
+        {
+            SetExecutingUnit(default, callback);
+        }
 
         /// <summary>
         /// Sets currently running delegate if previous one finished or plans for execution if prev one isn't finished yet 
         /// </summary>
-        public void SetExecutingUnit(SendOrPostCallback callback)
+        public void SetExecutingUnit(ExecutionSegmentLogicBase logic, SendOrPostCallback callback)
         {
             if (_status == SegmentStatus.Stopped)
             {
                 throw new ThreadPoolException("Cannot set next action to the not running thread");
             }
             
-            _nextActions.Enqueue(callback);
+            _nextActions.Enqueue(new QueueItem
+            {
+                Logic = logic,
+                Callback = callback
+            });
 
             // if status is still Paused, knock it 
             if (_status == SegmentStatus.Paused)
@@ -51,6 +64,8 @@ namespace DevTools.Threading
                 _event.Set();
             }
         }
+
+        public ThreadState GetThreadStatus() => _thread.ThreadState;
 
         public void RequestThreadStop()
         {
@@ -72,23 +87,22 @@ namespace DevTools.Threading
         {
             while (_stoppingRequested == false)
             {
-                if (_nextActions.TryDequeue(out var callback))
+                if (_nextActions.TryDequeue(out var queueItem))
                 {
                     _status = SegmentStatus.Running;
-                    callback.Invoke(default);
-                    _status = SegmentStatus.Paused;
+                    Logic = queueItem.Logic;
+                    queueItem.Callback.Invoke(default);
+                    Logic = default;
                 }
                 else
                 {
+                    _status = SegmentStatus.Paused;
                     _event.WaitOne();
                 }
             }
 
             // Notify awaiter if have
-            if (_stoppingEvent != null)
-            {
-                _stoppingEvent.Set();
-            }
+            _stoppingEvent?.Set();
 
             _status = SegmentStatus.Stopped;
         }
@@ -96,6 +110,26 @@ namespace DevTools.Threading
         private string BuildName()
         {
             return _segmentName ?? $"{nameof(ExecutionSegment)} #{_index}";
+        }
+
+        public override int GetHashCode()
+        {
+            return _thread.GetHashCode();
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if(obj is ExecutionSegment es)
+            {
+                return es._thread == _thread;
+            }
+            return false;
+        }
+
+        private struct QueueItem
+        {
+            public ExecutionSegmentLogicBase Logic;
+            public SendOrPostCallback Callback;
         }
     }
 }

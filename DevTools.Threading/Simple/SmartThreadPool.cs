@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -15,8 +16,11 @@ namespace DevTools.Threading
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
+        private readonly HashSet<IExecutionSegment> _frozenSegments = new();
         private readonly ManualResetEvent _event = new(false);
         private readonly SmartThreadPoolStrategy _globalStrategy;
+        private readonly Timer _timer;
+        private readonly TimeSpan _timerInterval = TimeSpan.FromSeconds(1);
         private volatile int _threadsCounter = 0;
         
         public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedThreads = -1)
@@ -42,6 +46,32 @@ namespace DevTools.Threading
                 }
                 _event.Set();
             });
+
+            _timer = new Timer(_ =>
+            {
+                _managementSegment.SetExecutingUnit(_ =>
+                {
+                    var frozensCounter = 0;
+                    foreach (var segment in _segments.ToArray())
+                    {
+                        if (segment.Logic.CheckFrozen() && _segments.Remove(segment))
+                        {
+                            _frozenSegments.Add(segment);
+                            segment.RequestThreadStop();
+                            segment.SetExecutingUnit(_ =>
+                            {
+                                _frozenSegments.Remove(segment);
+                                _segments.Add(segment);
+                            });
+                            frozensCounter++;
+                        }
+                    }
+                    for (var i = 0; i < frozensCounter; i++)
+                    {
+                        CreateAdditionalThreadImpl();
+                    }
+                }); 
+            }, default, _timerInterval, _timerInterval);
         }
 
         public SynchronizationContext SynchronizationContext { get; }

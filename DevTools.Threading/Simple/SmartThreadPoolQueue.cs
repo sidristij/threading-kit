@@ -43,7 +43,7 @@ namespace DevTools.Threading
                 Interlocked.Decrement(ref _parallelCounter);
                 return true;
             }
-
+            
             // try read single item
             if (_workQueue.TryDequeue(out unitOfWork))
             {

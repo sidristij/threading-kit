@@ -4,7 +4,7 @@ namespace DevTools.Threading
 {
     public class SmartThreadPoolStrategy : IThreadPoolStrategy
     {
-        private readonly long MinIntervalToStartWorkitem_µs = TimeConsts.ms_to_µs(500);
+        private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(500);
         private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
         private readonly long MinIntervalBetweenStarts_µs = TimeConsts.ms_to_µs(200);
 
@@ -43,7 +43,7 @@ namespace DevTools.Threading
                 var workitemsPerThreadTheoretical = globalQueueCount / parallelism;
                 var timeToExecute_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
 
-                if (timeToExecute_µs > MinIntervalToStartWorkitem_µs)
+                if (timeToExecute_µs > MinIntervalToStartThread_µs)
                 {
                     // only one thread can enter this section. Other threads will skip it 
                     if (Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
