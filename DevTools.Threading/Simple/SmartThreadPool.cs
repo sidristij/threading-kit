@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Threading;
 
@@ -11,22 +12,26 @@ namespace DevTools.Threading
         private const string ManagementSegmentName = "Management segment";
         private readonly int MaxAllowedThreads;
         private readonly int MinAllowedThreads;
+        
         private readonly SmartThreadPoolQueue _globalQueue;
         private readonly SmartThreadPoolQueue[] _queues = new SmartThreadPoolQueue[Math.Abs((int)ThreadPoolItemPriority.High - (int)ThreadPoolItemPriority.Low)];
+        
         private readonly IExecutionSegment _managementSegment = new ExecutionSegment(ManagementSegmentName);
         private readonly HashSet<IExecutionSegment> _segments = new();
         private readonly ConcurrentQueue<IExecutionSegment> _parkedSegments = new();
         private readonly HashSet<IExecutionSegment> _frozenSegments = new();
+        
         private readonly ManualResetEvent _event = new(false);
         private readonly SmartThreadPoolStrategy _globalStrategy;
-        private readonly Timer _timer;
+        private Timer _timer;
         private readonly TimeSpan _timerInterval = TimeSpan.FromSeconds(1);
         private volatile int _threadsCounter = 0;
+        private bool _stopped = false;
         
-        public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedThreads = -1)
+        public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedWorkingThreads = -1)
         {
             MinAllowedThreads = minAllowedThreads;
-            MaxAllowedThreads = maxAllowedThreads > 0 ? maxAllowedThreads : Environment.ProcessorCount * 2;
+            MaxAllowedThreads = maxAllowedWorkingThreads > 0 ? maxAllowedWorkingThreads : Environment.ProcessorCount * 2;
             SynchronizationContext = new SmartThreadPoolSynchronizationContext(this);
             MaxThreadsGot = 0;
             
@@ -47,31 +52,7 @@ namespace DevTools.Threading
                 _event.Set();
             });
 
-            _timer = new Timer(_ =>
-            {
-                _managementSegment.SetExecutingUnit(_ =>
-                {
-                    var frozensCounter = 0;
-                    foreach (var segment in _segments.ToArray())
-                    {
-                        if (segment.Logic.CheckFrozen() && _segments.Remove(segment))
-                        {
-                            _frozenSegments.Add(segment);
-                            segment.RequestThreadStop();
-                            segment.SetExecutingUnit(_ =>
-                            {
-                                _frozenSegments.Remove(segment);
-                                _segments.Add(segment);
-                            });
-                            frozensCounter++;
-                        }
-                    }
-                    for (var i = 0; i < frozensCounter; i++)
-                    {
-                        CreateAdditionalThreadImpl();
-                    }
-                }); 
-            }, default, _timerInterval, _timerInterval);
+            StartFrozenThreadsCheck();
         }
 
         public SynchronizationContext SynchronizationContext { get; }
@@ -177,8 +158,8 @@ namespace DevTools.Threading
                 if (_segments.Count > MinAllowedThreads)
                 {
                     _segments.Remove(segment);
+                    _frozenSegments.Remove(segment);
                     _parkedSegments.Enqueue(segment);
-                    
                     return true;
                 }
             }
@@ -219,6 +200,48 @@ namespace DevTools.Threading
             }
 
             return false;
+        }
+
+        private void StartFrozenThreadsCheck()
+        {
+            // plan check to management thread
+            _timer = new Timer(_ =>
+            {
+                _managementSegment.SetExecutingUnit(_ => { CheckFrozenAndAddThread(); });
+            }, default, _timerInterval, _timerInterval);
+        }
+
+        private void CheckFrozenAndAddThread()
+        {
+            var frozenCounter = 0;
+            foreach (var segment in _segments.ToArray())
+            {
+                if (segment.Logic.CheckFrozen())
+                {
+                    lock (_segments)
+                    {
+                        // - remove frozen from collection 
+                        // - add it to frozen list
+                        // - save it to active threads list (to be moved into _parked at end of life)
+                        // - 
+                        if (_segments.Remove(segment))
+                        {
+                            _frozenSegments.Add(segment);
+                            segment.RequestThreadStop();
+                            segment.SetExecutingUnit(_ =>
+                            {
+                                _frozenSegments.Remove(segment);
+                            });
+                            frozenCounter++;
+                        }
+                    }
+
+                    for (var i = 0; i < frozenCounter; i++)
+                    {
+                        CreateAdditionalThreadImpl();
+                    }
+                }
+            }
         }
         
         private class WaitForSingleObjectState
