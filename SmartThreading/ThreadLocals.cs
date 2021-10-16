@@ -12,7 +12,7 @@ namespace DevTools.Threading
         public readonly IThreadPoolQueue GlobalQueue;
         public volatile int Count;
 
-        private readonly ConcurrentQueue<UnitOfWork> _localQueue;
+        private readonly ConcurrentQueue<PoolWork> _localQueue;
         private readonly ThreadsLocalQueuesList _queueList;
 
         public ThreadLocals(
@@ -25,15 +25,15 @@ namespace DevTools.Threading
             _queueList.Add(_localQueue);
         }
 
-        public void Enqueue(UnitOfWork unitOfWork)
+        public void Enqueue(PoolWork poolWork)
         {
             Interlocked.Increment(ref Count);
-            _localQueue.Enqueue(unitOfWork);
+            _localQueue.Enqueue(poolWork);
         }
         
-        public bool TryDequeue(out UnitOfWork unitOfWork)
+        public bool TryDequeue(out PoolWork poolWork)
         {
-            if (_localQueue.TryDequeue(out unitOfWork))
+            if (_localQueue.TryDequeue(out poolWork))
             {
                 Interlocked.Decrement(ref Count);
                 return true;

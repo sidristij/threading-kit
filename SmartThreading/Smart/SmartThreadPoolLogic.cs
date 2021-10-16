@@ -7,9 +7,9 @@ namespace DevTools.Threading
             ;
         }
 
-        protected override void OnRun(UnitOfWork unitOfWork)
+        protected override void OnRun(PoolWork poolWork)
         {
-            unitOfWork.Run("Hello!");
+            poolWork.Run("Hello!");
         }
 
         protected override void OnStopping()

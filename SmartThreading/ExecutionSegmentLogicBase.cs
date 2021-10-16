@@ -90,9 +90,9 @@ namespace DevTools.Threading
         
         protected abstract void OnStopping();
 
-        protected virtual void OnRun(UnitOfWork unitOfWork)
+        protected virtual void OnRun(PoolWork poolWork)
         {
-            unitOfWork.Run<object>(null);
+            poolWork.Run<object>(null);
         }
         
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
@@ -103,7 +103,7 @@ namespace DevTools.Threading
             var cycles = -1;
             var elapsed_µs = -1L;
             
-            UnitOfWork workItem = default;
+            PoolWork workItem = default;
           
             //
             // Save the start time of internal loop

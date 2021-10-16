@@ -8,9 +8,9 @@ namespace Demo
 {
     class Program
     {
-        private const int count = 1_000_000;
+        private const int count = 1_000;
 
-        static void Main1()
+        static void Main2()
         {
             var pool = new SmartThreadPool<ulong>( 4, Environment.ProcessorCount);
             var @event = new CountdownEvent(1);
@@ -25,7 +25,7 @@ namespace Demo
             @event.Wait();
         }
         
-        static void Main2()
+        static void Main1()
         {
             var pool = new SmartThreadPool<ulong>(4, 4);
             var @event = new CountdownEvent(5);
@@ -58,7 +58,7 @@ namespace Demo
         
         static void Main(string[] args)
         {
-            var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount);
+            var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount*2);
 
             pool.InitializedWaitHandle.WaitOne();
 
@@ -100,7 +100,7 @@ namespace Demo
                 Console.WriteLine($"AVG: {sign}{res} %");
             }
             
-            Console.WriteLine($"done with max = {pool.MaxThreadsGot} level of parallelism");
+            Console.WriteLine($"done with max = {pool.MaxHistoricalParallelismLevel} level of parallelism");
         }
 
         private static int TestRegularPool()
@@ -109,7 +109,11 @@ namespace Demo
             var @event = new CountdownEvent(count);
             for (var i = 0; i < count; i++)
             {
-                ThreadPool.QueueUserWorkItem((x) => { ((CountdownEvent)x).Signal(); }, @event, false);
+                ThreadPool.QueueUserWorkItem((x) =>
+                {
+                    Thread.Sleep(1);
+                    x.Signal();
+                }, @event, false);
             }
 
             @event.Wait();
@@ -128,6 +132,7 @@ namespace Demo
                 // pool.Enqueue(&OnPoolTask, @event, false);
                 pool.Enqueue((val, state) =>
                 {
+                    Thread.Sleep(1);
                     ((CountdownEvent)state).Signal();
                 }, @event, false);
             }

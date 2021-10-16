@@ -4,8 +4,8 @@ namespace DevTools.Threading
     {
         int GlobalCount { get; }
         
-        public void Enqueue(UnitOfWork unitOfWork, bool preferLocal = false);
+        public void Enqueue(PoolWork poolWork, bool preferLocal = false);
         
-        public bool TryDequeue(ref UnitOfWork single);
+        public bool TryDequeue(ref PoolWork single);
     }
 }

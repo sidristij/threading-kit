@@ -4,7 +4,7 @@ namespace DevTools.Threading
     {
         int ParallelismLevel { get; }
         
-        bool CreateAdditionalExecutionSegment();
+        bool CreateAdditionalExecutionSegments(int count);
 
         bool NotifyAboutExecutionSegmentStopping(IExecutionSegment segment);
     }

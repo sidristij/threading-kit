@@ -32,7 +32,7 @@ namespace DevTools.Threading
             MinAllowedThreads = minAllowedThreads;
             MaxAllowedThreads = maxAllowedWorkingThreads > 0 ? maxAllowedWorkingThreads : Environment.ProcessorCount * 2;
             SynchronizationContext = new SmartThreadPoolSynchronizationContext(this);
-            MaxThreadsGot = 0;
+            MaxHistoricalParallelismLevel = 0;
             
             for (int i = 0; i < _queues.Length; i++)
             {
@@ -54,76 +54,99 @@ namespace DevTools.Threading
             StartFrozenThreadsCheck();
         }
 
+        /// <summary>
+        /// Gets public synchronization context of pool threads which can be used
+        /// as alternative way of delegates planning 
+        /// </summary>
         public SynchronizationContext SynchronizationContext { get; }
 
+        /// <summary>
+        /// Gets active level of parallelism excluding parked or frozen threads
+        /// </summary>
         public int ParallelismLevel => _segments.Count;
-        public int MaxThreadsGot { get; private set; }
+        
+        /// <summary>
+        /// Gets maximum level of parallelism which pool got while its work
+        /// </summary>
+        public int MaxHistoricalParallelismLevel { get; private set; }
 
+        /// <summary>
+        /// Gets awaitable handle if client code wants to wait until all threads
+        /// of pool started at pool startup
+        /// </summary>
         public WaitHandle InitializedWaitHandle => _event;
      
         /// <summary>
         /// Initialize with regular delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnit unit, object state = default, bool preferLocal = true)
+        public void Enqueue(ExecutionUnit unit, object outer = default, bool preferLocal = true)
         {
-            var unitOfWork = default(UnitOfWork);
-            unitOfWork.Init(unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
+            PoolWork poolWork = default;
+            poolWork.Init(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
         /// <summary>
         /// Initialize with regular function pointer 
         /// </summary>
-        public unsafe void Enqueue(delegate*<object, void> unit, object state = default, bool preferLocal = true)
+        public unsafe void Enqueue(delegate*<object, void> unit, object outer = default, bool preferLocal = true)
         {
-            UnitOfWork unitOfWork = default;
-            unitOfWork.Init(unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
+            PoolWork poolWork = default;
+            poolWork.Init(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
         /// <summary>
         /// Initialize with parametrized delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = default, bool preferLocal = true)
+        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object outer = default, bool preferLocal = true)
         {
-            UnitOfWork unitOfWork = default;
-            unitOfWork.Init(unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
+            PoolWork poolWork = default;
+            poolWork.Init(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
         /// <summary>
         /// Initialize with parametrized function pointer 
         /// </summary>
-        public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object state = default, bool preferLocal = true)
+        public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true)
         {
-            UnitOfWork unitOfWork = default;
-            unitOfWork.Init((delegate*<object, object, void>)unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
+            PoolWork poolWork = default;
+            poolWork.Init<TPoolParameter>(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
-        public void Enqueue(ExecutionUnitAsync unit, object state = default, bool preferLocal = true)
+        /// <summary>
+        /// Initialize with non-parametrized async delegate 
+        /// </summary>
+        public void Enqueue(ExecutionUnitAsync unit, object outer = default, bool preferLocal = true)
         {
-            var unitOfWork = default(UnitOfWork);
-            unitOfWork.Init(unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
-        }
-
-        
-        public void Enqueue(ExecutionUnitAsync<TPoolParameter> unit, object state = default, bool preferLocal = true)
-        {
-            var unitOfWork = default(UnitOfWork);
-            unitOfWork.Init(unit, state);
-            _globalQueue.Enqueue(unitOfWork, preferLocal);
+            PoolWork poolWork = default;
+            poolWork.Init(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
-        public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default)
+        /// <summary>
+        /// Initialize with parametrized async delegate 
+        /// </summary>
+        public void Enqueue(ExecutionUnitAsync<TPoolParameter> unit, object outer = default, bool preferLocal = true)
+        {
+            PoolWork poolWork = default;
+            poolWork.Init(unit, outer);
+            _globalQueue.Enqueue(poolWork, preferLocal);
+        }
+        
+        /// <summary>
+        /// Initialize with WaitHandle and non-parametrized continuation 
+        /// </summary>
+        public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object outer = default, TimeSpan timeout = default)
         {
             var wfsoState = new WaitForSingleObjectState
             {
                 Delegate = unit,
                 Timeout = timeout,
                 Handle = handle,
-                InternalState = state
+                InternalState = outer
             };
 
             void ExecutionUnitCallback(object args)
@@ -133,20 +156,20 @@ namespace DevTools.Threading
                 workload.Delegate(workload.InternalState);
             }
 
-            var unitOfWork = default(UnitOfWork);
-            unitOfWork.Init(ExecutionUnitCallback, wfsoState);
-            _globalQueue.Enqueue(unitOfWork, false);
+            var poolWork = default(PoolWork);
+            poolWork.Init(ExecutionUnitCallback, wfsoState);
+            _globalQueue.Enqueue(poolWork, false);
         }
         
-        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegment()
+        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegments(int count)
         {
-            _managementSegment.SetExecutingUnit(_ =>
+            for (var i = 0; i < count; i++)
             {
-                if (CreateAdditionalThreadImpl())
+                _managementSegment.SetExecutingUnit(_ =>
                 {
-                    ; // log
-                }
-            });
+                    CreateAdditionalThreadImpl();
+                });
+            }
             return true;
         }
 
@@ -194,7 +217,7 @@ namespace DevTools.Threading
                 var segmentLogic = new SmartThreadPoolLogic();
                 var strategy = new SmartThreadPoolThreadStrategy(threadSegment, _globalStrategy);
                 segmentLogic.InitializeAndStart(this, _globalQueue, strategy, threadSegment);
-                MaxThreadsGot = Math.Max(MaxThreadsGot, ParallelismLevel);
+                MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
                 return true;
             }
 
@@ -213,7 +236,7 @@ namespace DevTools.Threading
         private void CheckFrozenAndAddThread()
         {
             var frozenCounter = 0;
-            foreach (var segment in _segments.ToArray())
+            foreach (var segment in _segments?.ToArray())
             {
                 if (segment.Logic.CheckFrozen())
                 {

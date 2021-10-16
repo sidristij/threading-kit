@@ -1,12 +1,14 @@
+using System;
 using System.Threading;
 
 namespace DevTools.Threading
 {
     public class SmartThreadPoolStrategy : IThreadPoolStrategy
     {
-        private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(500);
+        private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(300);
         private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
         private readonly long MinIntervalBetweenStarts_µs = TimeConsts.ms_to_µs(200);
+        private readonly long MinIntervalBetweenStartAnsStop_µs = TimeConsts.ms_to_µs(10_000);
 
         private readonly CyclicTimeRangesQueue _valuableIntervals = new();
         private readonly IThreadPoolThreadsManagement _threadsManagement;
@@ -48,9 +50,15 @@ namespace DevTools.Threading
                     // only one thread can enter this section. Other threads will skip it 
                     if (Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                     {
-                        Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
-                        _threadsManagement.CreateAdditionalExecutionSegment();
-                        Interlocked.Exchange(ref _locked, 0);
+                        try
+                        {
+                            Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
+                            _threadsManagement.CreateAdditionalExecutionSegments(Math.Max(1, (int)(timeToExecute_µs / MinIntervalToStartThread_µs / 2)));
+                        }
+                        finally
+                        {
+                            _locked = 0;
+                        }
                         return ParallelismLevelChange.Increased;
                     }
                 }
@@ -68,16 +76,21 @@ namespace DevTools.Threading
             IExecutionSegment executionSegment,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
+            var fromStartElapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
             var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStopBreakpoint_µs;
-            if (elapsed_µs > MinIntervalBetweenStops_µs)
+            if (fromStartElapsed_µs > MinIntervalBetweenStartAnsStop_µs && 
+                elapsed_µs > MinIntervalBetweenStops_µs)
             {
-                if(_threadsManagement.NotifyAboutExecutionSegmentStopping(executionSegment))
+                if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
-                    Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
-                    return ParallelismLevelChange.Decrease;
+                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(executionSegment))
+                    {
+                        Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
+                        Interlocked.Exchange(ref _locked, 0);
+                        return ParallelismLevelChange.Decrease;
+                    }
+                    Interlocked.Exchange(ref _locked, 0);
                 }
-
-                ;
             }
             return ParallelismLevelChange.NoChanges;
         }

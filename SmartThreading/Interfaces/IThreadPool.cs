@@ -9,18 +9,18 @@ namespace DevTools.Threading
         
         int ParallelismLevel { get; }
         
-        unsafe void Enqueue(delegate*<object, void> unit, object state = default, bool preferLocal = true);
+        public int MaxHistoricalParallelismLevel { get; }
         
-        void Enqueue(ExecutionUnit unit, object state = default, bool preferLocal = true);
+        unsafe void Enqueue(delegate*<object, void> unit, object outer = default, bool preferLocal = true);
         
-        // void Enqueue(ExecutionUnit unit, ThreadPoolItemPriority priority, object state = default, bool preferLocal = true);
-
-        void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object state = default, TimeSpan timeout = default);
+        void Enqueue(ExecutionUnit unit, object outer = default, bool preferLocal = true);
+        
+        void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object outer = default, TimeSpan timeout = default);
     }
 
     public interface IThreadPool<TPoolParameter> : IThreadPool
     {
-        void Enqueue(ExecutionUnit<TPoolParameter> unit, object state = null, bool preferLocal = true);
-        unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object state = default, bool preferLocal = true);
+        void Enqueue(ExecutionUnit<TPoolParameter> unit, object outer = null, bool preferLocal = true);
+        unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true);
     }
 }
