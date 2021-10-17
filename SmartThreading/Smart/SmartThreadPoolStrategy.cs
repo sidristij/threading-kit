@@ -14,8 +14,7 @@ namespace DevTools.Threading
         private readonly IThreadPoolThreadsManagement _threadsManagement;
         private long LastStopBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         private long LastStartBreakpoint_µs = TimeConsts.GetTimestamp_µs();
-        private volatile int _locked = 0;
-        private object _threadCreationLock = new();
+        private volatile int _locked;
 
         public SmartThreadPoolStrategy(IThreadPoolThreadsManagement threadsManagement)
         {

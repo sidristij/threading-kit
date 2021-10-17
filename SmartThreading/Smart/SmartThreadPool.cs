@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Threading;
 
@@ -112,7 +111,7 @@ namespace DevTools.Threading
         public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true)
         {
             PoolWork poolWork = default;
-            poolWork.Init<TPoolParameter>(unit, outer);
+            poolWork.Init(unit, outer);
             _globalQueue.Enqueue(poolWork, preferLocal);
         }
         
@@ -236,7 +235,8 @@ namespace DevTools.Threading
         private void CheckFrozenAndAddThread()
         {
             var frozenCounter = 0;
-            foreach (var segment in _segments?.ToArray())
+            if(_segments == null) return;
+            foreach (var segment in _segments.ToArray())
             {
                 if (segment.Logic.CheckFrozen())
                 {
@@ -245,7 +245,6 @@ namespace DevTools.Threading
                         // - remove frozen from collection 
                         // - add it to frozen list
                         // - save it to active threads list (to be moved into _parked at end of life)
-                        // - 
                         if (_segments.Remove(segment))
                         {
                             _frozenSegments.Add(segment);

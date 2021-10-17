@@ -8,16 +8,23 @@ namespace Demo
 {
     class Program
     {
-        private const int count = 1_000;
+        private const int count = 1_000_000;
 
-        static void Main2()
+        static void Main()
+        {
+            // Main1();
+            // Main2();
+            Main3();
+        }
+
+        static void Main1()
         {
             var pool = new SmartThreadPool<ulong>( 4, Environment.ProcessorCount);
             var @event = new CountdownEvent(1);
             pool.Enqueue(async (p, state) =>
             {
                 Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
-                await MethodAsync();
+                await MethodAsync().ConfigureAwait(false);
                 Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
                 ((CountdownEvent)state).Signal();
             }, @event, false);
@@ -25,7 +32,7 @@ namespace Demo
             @event.Wait();
         }
         
-        static void Main1()
+        static void Main2()
         {
             var pool = new SmartThreadPool<ulong>(4, 4);
             var @event = new CountdownEvent(5);
@@ -56,15 +63,15 @@ namespace Demo
             Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
         }
         
-        static void Main(string[] args)
+        static void Main3()
         {
             var pool = new SmartThreadPool<object>( 1, Environment.ProcessorCount*2);
 
             pool.InitializedWaitHandle.WaitOne();
 
-            // var netPool = false;
+            var netPool = false;
             var ourPool = true;
-            var netPool = true;
+            // var netPool = true;
             // var ourPool = false;
             
             var sum_regular = 0;
@@ -111,7 +118,8 @@ namespace Demo
             {
                 ThreadPool.QueueUserWorkItem((x) =>
                 {
-                    Thread.Sleep(1);
+                    // Thread.Sleep(1);
+                    // await Task.Delay(1);
                     x.Signal();
                 }, @event, false);
             }
@@ -130,9 +138,10 @@ namespace Demo
             for (var i = 0; i < count; i++)
             {
                 // pool.Enqueue(&OnPoolTask, @event, false);
-                pool.Enqueue((val, state) =>
+                pool.Enqueue((state) =>
                 {
-                    Thread.Sleep(1);
+                    // Thread.Sleep(1);
+                    // await Task.Delay(1);
                     ((CountdownEvent)state).Signal();
                 }, @event, false);
             }

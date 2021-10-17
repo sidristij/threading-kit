@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace DevTools.Threading
 {
     public class SmartThreadPoolLogic : SimplifiedLogicBase
@@ -7,9 +9,9 @@ namespace DevTools.Threading
             ;
         }
 
-        protected override void OnRun(PoolWork poolWork)
+        protected override Task OnRun(PoolWork poolWork)
         {
-            poolWork.Run("Hello!");
+            return poolWork.Run("Hello!");
         }
 
         protected override void OnStopping()

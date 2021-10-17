@@ -90,9 +90,9 @@ namespace DevTools.Threading
         
         protected abstract void OnStopping();
 
-        protected virtual void OnRun(PoolWork poolWork)
+        protected virtual Task OnRun(PoolWork poolWork)
         {
-            poolWork.Run<object>(null);
+            return poolWork.Run<object>(null);
         }
         
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
