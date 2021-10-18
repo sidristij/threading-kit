@@ -9,6 +9,7 @@ namespace DevTools.Threading
     public class SmartThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
     {
         private const string ManagementSegmentName = "Management segment";
+        private const string WorkingSegmentName = "Working segment";
         private readonly int MaxAllowedThreads;
         private readonly int MinAllowedThreads;
         
@@ -205,7 +206,7 @@ namespace DevTools.Threading
                     if (_segments.Count < MaxAllowedThreads)
                     {
                         var index = Interlocked.Increment(ref _threadsCounter);
-                        threadSegment = new ExecutionSegment($"{ManagementSegmentName}: #{index}");
+                        threadSegment = new ExecutionSegment($"{WorkingSegmentName}: #{index}");
                         _segments.Add(threadSegment);
                     }
                 }
