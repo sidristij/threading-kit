@@ -7,15 +7,15 @@ namespace DevTools.Threading
     {
         // Global queue of tasks with high cost of getting items
         private readonly ConcurrentQueue<PoolWork> _workQueue = new();
-        private volatile int _parallelCounter;
+        private volatile int _globalCounter;
         
         // Set of local for each thread queues
         private readonly ThreadsLocalQueuesList _stealingQueue = new();
         
         ThreadsLocalQueuesList IThreadPoolInternalData.QueueList => _stealingQueue;
 
-        public int GlobalCount => _parallelCounter;
-
+        public int GlobalCount => _globalCounter;
+        
         public void Enqueue(PoolWork poolWork, bool preferLocal)
         {
             if (preferLocal)
@@ -24,13 +24,12 @@ namespace DevTools.Threading
                 if (tl != null)
                 {
                     tl.Enqueue(poolWork);
-                    Interlocked.Increment(ref _parallelCounter);
                     return;
                 }
             }
 
             _workQueue.Enqueue(poolWork);
-            Interlocked.Increment(ref _parallelCounter);
+            Interlocked.Increment(ref _globalCounter);
         }
 
         public bool TryDequeue(ref PoolWork poolWork)
@@ -40,14 +39,13 @@ namespace DevTools.Threading
             // try read local queue
             if (localWsq.Count > 0 && localWsq.TryDequeue(out poolWork))
             {
-                Interlocked.Decrement(ref _parallelCounter);
                 return true;
             }
             
             // try read single item
             if (_workQueue.TryDequeue(out poolWork))
             {
-                Interlocked.Decrement(ref _parallelCounter);
+                Interlocked.Decrement(ref _globalCounter);
                 return true;
             }
 

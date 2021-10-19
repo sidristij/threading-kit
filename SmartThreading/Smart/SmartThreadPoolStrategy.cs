@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPoolStrategy : IThreadPoolStrategy
+    internal class SmartThreadPoolStrategy : IThreadPoolStrategy
     {
         private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(300);
         private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
@@ -72,7 +72,7 @@ namespace DevTools.Threading
         /// And after this moment we can get a lot of work with no threads to get this work. So, we will stop them 1-by-1. 
         /// </summary>
         public ParallelismLevelChange RequestForThreadStop(
-            IExecutionSegment executionSegment,
+            ThreadWrapper executionSegment,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
             var fromStartElapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;

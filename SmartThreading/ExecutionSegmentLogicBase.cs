@@ -7,7 +7,7 @@ namespace DevTools.Threading
     {
         private IThreadPool _threadPool;
         private SmartThreadPoolQueue _globalQueue;
-        private IExecutionSegment _executionSegment;
+        private ThreadWrapper _threadWrapper;
         private IThreadPoolThreadStrategy _strategy;
         private ManualResetEvent _stoppedEvent;
         private long _lastBreakpoint_µs;
@@ -19,14 +19,14 @@ namespace DevTools.Threading
             IThreadPool threadPool,
             SmartThreadPoolQueue globalQueue,
             IThreadPoolThreadStrategy strategy,
-            IExecutionSegment executionSegment)
+            ThreadWrapper executionSegment)
         {
             _threadPool = threadPool;
             _globalQueue = globalQueue;
-            _executionSegment = executionSegment;
+            _threadWrapper = executionSegment;
             _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
-            _executionSegment.SetExecutingUnit(this, SegmentWorker);
+            _threadWrapper.SetExecutingUnit(this, SegmentWorker);
             _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         }
 
@@ -39,7 +39,7 @@ namespace DevTools.Threading
         protected internal bool CheckFrozen()
         {
             return ((TimeConsts.GetTimestamp_µs() - _lastBreakpoint_µs) > MaxTimeForDelegateRun_µs) &&
-                   (_executionSegment.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
+                   (_threadWrapper.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
         }
         
         private void SegmentWorker(object ctx)

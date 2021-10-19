@@ -7,23 +7,23 @@ namespace DevTools.Threading
     /// Encapsulates thread, which can migrate btw pools with internal logic change via changing current executing delegate.
     /// Should work in pair with ThreadWrapperBase, which have work for controllable Thread
     /// </summary>
-    internal class ExecutionSegment : IExecutionSegment
+    internal class ThreadWrapper
     {
-        private readonly string _segmentName;
+        private readonly string _threadName;
         private static int _counter = 1;
-        private int _index = 1;
+        private readonly int _index = 1;
         private readonly Thread _thread;
         private volatile SegmentStatus _status = SegmentStatus.Paused;
         private volatile bool _stoppingRequested = false;
         private volatile ConcurrentQueue<QueueItem> _nextActions = new();
         private readonly AutoResetEvent _event;
 
-        internal bool Freezed = false;
+        internal bool Frozen = false;
 
-        public ExecutionSegment(string segmentName = default)
+        public ThreadWrapper(string threadName = default)
         {
             Logic = default;
-            _segmentName = segmentName;
+            _threadName = threadName;
             _index = Interlocked.Increment(ref _counter);
             _thread = new Thread(ThreadWork);
             _thread.IsBackground = true;
@@ -92,7 +92,7 @@ namespace DevTools.Threading
 
         private string BuildName()
         {
-            return _segmentName ?? $"{nameof(ExecutionSegment)} #{_index}";
+            return _threadName ?? $"{nameof(ThreadWrapper)} #{_index}";
         }
 
         public override int GetHashCode()
@@ -102,7 +102,7 @@ namespace DevTools.Threading
 
         public override bool Equals(object obj)
         {
-            if(obj is ExecutionSegment es)
+            if(obj is ThreadWrapper es)
             {
                 return es._thread == _thread;
             }

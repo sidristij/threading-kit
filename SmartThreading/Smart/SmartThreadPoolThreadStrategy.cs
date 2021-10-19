@@ -1,19 +1,19 @@
 ﻿namespace DevTools.Threading
 {
-    public class SmartThreadPoolThreadStrategy : IThreadPoolThreadStrategy
+    internal class SmartThreadPoolThreadStrategy : IThreadPoolThreadStrategy
     {
         private readonly long HasNoWorkUpperBoundThreshold_µs = TimeConsts.ms_to_µs(250);
         private readonly long HasNoWorkWrongStatsThreshold_µs = TimeConsts.ms_to_µs(1000);
-        private readonly IExecutionSegment _segment;
+        private readonly ThreadWrapper _threadWrapper;
         private readonly IThreadPoolStrategy _poolStrategy;
         private long _lastBreakpoint_µs;
 
         public SmartThreadPoolThreadStrategy(
-            IExecutionSegment segment,
+            ThreadWrapper threadWrapper,
             IThreadPoolStrategy poolStrategy)
         {
             _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
-            _segment = segment;
+            _threadWrapper = threadWrapper;
             _poolStrategy = poolStrategy;
         }
 
@@ -51,7 +51,7 @@
                     _lastBreakpoint_µs = currentBreakpoint_µs;
                     
                     // ask for thread stop from global strategy
-                    return _poolStrategy.RequestForThreadStop(_segment, globalQueueCount, jobsDone, range_µs);
+                    return _poolStrategy.RequestForThreadStop(_threadWrapper, globalQueueCount, jobsDone, range_µs);
                 }
             }
             

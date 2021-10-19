@@ -7,7 +7,7 @@ namespace DevTools.Threading
 {
     internal class ThreadsLocalQueuesList
     {
-        internal volatile ConcurrentQueue<PoolWork>[] _queues = new ConcurrentQueue<PoolWork>[0];
+        private volatile ConcurrentQueue<PoolWork>[] _queues = new ConcurrentQueue<PoolWork>[0];
 
         public void Add(ConcurrentQueue<PoolWork> queue)
         {

@@ -1,11 +1,11 @@
 namespace DevTools.Threading
 {
-    public interface IThreadPoolThreadsManagement
+    internal interface IThreadPoolThreadsManagement
     {
         int ParallelismLevel { get; }
         
         bool CreateAdditionalExecutionSegments(int count);
 
-        bool NotifyAboutExecutionSegmentStopping(IExecutionSegment segment);
+        bool NotifyAboutExecutionSegmentStopping(ThreadWrapper segment);
     }
 }
