@@ -1,17 +1,15 @@
-﻿using DevTools.Threading;
-
-namespace DevTools.Threading
+﻿namespace DevTools.Threading
 {
-    internal class ThreadPoolThreadStrategy : IThreadPoolThreadStrategy
+    internal class ParallelismLocalStrategy : IParallelismLocalStrategy
     {
         private readonly long HasNoWorkUpperBoundThreshold_µs = TimeUtils.ms_to_µs(250);
         private readonly ThreadWrappingQueue _threadWrappingQueue;
-        private readonly IThreadPoolStrategy _poolStrategy;
+        private readonly IParallelismStrategy _poolStrategy;
         private long _lastBreakpoint_µs;
 
-        public ThreadPoolThreadStrategy(
+        public ParallelismLocalStrategy(
             ThreadWrappingQueue threadWrappingQueue,
-            IThreadPoolStrategy poolStrategy)
+            IParallelismStrategy poolStrategy)
         {
             _lastBreakpoint_µs = TimeUtils.GetTimestamp_µs();
             _threadWrappingQueue = threadWrappingQueue;

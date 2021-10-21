@@ -1,6 +1,6 @@
 ﻿namespace DevTools.Threading
 {
-    internal interface IThreadPoolInternalData
+    internal interface IThreadPoolInternals
     {
         ThreadsLocalQueuesList QueueList { get; }         
     }

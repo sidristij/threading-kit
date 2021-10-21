@@ -8,7 +8,7 @@ namespace DevTools.Threading
 {
     public class SmartThreadPool<TThreadPoolLogic, TThreadPoolStrategy, TPoolParameter> : 
         IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
-        where TThreadPoolStrategy : IThreadPoolStrategy, new()
+        where TThreadPoolStrategy : IParallelismStrategy, new()
         where TThreadPoolLogic : ExecutionSegmentLogicBase, new() 
     {
         #region privates
@@ -222,7 +222,7 @@ namespace DevTools.Threading
             if (threadWrappingQueue != default)
             {
                 var lifetimeLogic = new TThreadPoolLogic();
-                var strategy = _globalStrategy.CreateThreadStrategy(threadWrappingQueue);
+                var strategy = _globalStrategy.CreateLocalStrategy(threadWrappingQueue);
                 lifetimeLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrappingQueue);
                 MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
             }

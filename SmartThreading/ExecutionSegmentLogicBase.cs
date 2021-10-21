@@ -9,7 +9,7 @@ namespace DevTools.Threading
         private IThreadPool _threadPool;
         private SmartThreadPoolQueue _globalQueue;
         private ThreadWrappingQueue _threadWrappingQueue;
-        private IThreadPoolThreadStrategy _strategy;
+        private IParallelismLocalStrategy _strategy;
         private ManualResetEvent _stoppedEvent;
         private long _lastBreakpoint_µs;
 
@@ -19,7 +19,7 @@ namespace DevTools.Threading
         internal void InitializeAndStart(
             IThreadPool threadPool,
             SmartThreadPoolQueue globalQueue,
-            IThreadPoolThreadStrategy strategy,
+            IParallelismLocalStrategy strategy,
             ThreadWrappingQueue threadWrappingQueue)
         {
             _threadPool = threadPool;
@@ -144,7 +144,7 @@ namespace DevTools.Threading
             if (tl == null)
             {
                 tl = new ThreadLocals(
-                    _globalQueue, ((IThreadPoolInternalData)_globalQueue).QueueList);
+                    _globalQueue, ((IThreadPoolInternals)_globalQueue).QueueList);
                 ThreadLocals.instance = tl;
             }
 

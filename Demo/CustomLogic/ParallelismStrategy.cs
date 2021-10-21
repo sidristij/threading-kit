@@ -1,10 +1,9 @@
 using System;
 using System.Threading;
-using DevTools.Threading;
 
 namespace DevTools.Threading
 {
-    public class ThreadPoolStrategy : IThreadPoolStrategy
+    public class ParallelismStrategy : IParallelismStrategy
     {
         private readonly long MinIntervalToStartThread_µs = TimeUtils.ms_to_µs(300);
         private readonly long MinIntervalBetweenStops_µs =  TimeUtils.ms_to_µs(500);
@@ -25,9 +24,9 @@ namespace DevTools.Threading
         /// <summary>
         /// Creates local strategy for given thread 
         /// </summary>
-        public IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrappingQueue threadWrappingQueue)
+        public IParallelismLocalStrategy CreateLocalStrategy(ThreadWrappingQueue threadWrappingQueue)
         {
-            return new ThreadPoolThreadStrategy(threadWrappingQueue, this);
+            return new ParallelismLocalStrategy(threadWrappingQueue, this);
         }
 
         /// <summary>

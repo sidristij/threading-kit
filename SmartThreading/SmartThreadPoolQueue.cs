@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    internal class SmartThreadPoolQueue : IThreadPoolQueue, IThreadPoolInternalData
+    internal class SmartThreadPoolQueue : IThreadPoolQueue, IThreadPoolInternals
     {
         // Global queue of tasks with high cost of getting items
         private readonly ConcurrentQueue<PoolActionUnit> _workQueue = new();
@@ -12,7 +12,7 @@ namespace DevTools.Threading
         // Set of local for each thread queues
         private readonly ThreadsLocalQueuesList _stealingQueue = new();
         
-        ThreadsLocalQueuesList IThreadPoolInternalData.QueueList => _stealingQueue;
+        ThreadsLocalQueuesList IThreadPoolInternals.QueueList => _stealingQueue;
 
         public int GlobalCount => _globalCounter;
         
