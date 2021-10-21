@@ -107,7 +107,7 @@ namespace DevTools.Threading
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
-                if(workQueue.TryDequeue(ref actionUnitItem))
+                if (workQueue.TryDequeue(ref actionUnitItem))
                 {
                     hasWork = true;
                     OnRun(actionUnitItem);

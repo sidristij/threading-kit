@@ -36,6 +36,11 @@ namespace DevTools.Threading
         public void RequestThreadStop()
         {
             _stoppingRequested = true;
+            
+            if (_status == ThreadWrapperStatus.Paused)
+            {
+                _event.Set();
+            }
         }
 
         public void SetExecutingUnit(Action action) => SetExecutingUnit(default, action);
