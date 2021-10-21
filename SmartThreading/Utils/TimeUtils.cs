@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace DevTools.Threading
 {
-    public static class TimeConsts
+    public static class TimeUtils
     {
         private static readonly long ticks_in_µs = Stopwatch.Frequency / 1_000_000;
         private static readonly long ticks_in_ms = Stopwatch.Frequency / 1_000;

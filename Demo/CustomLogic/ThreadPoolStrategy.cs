@@ -1,19 +1,20 @@
 using System;
 using System.Threading;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPoolStrategy : IThreadPoolStrategy
+    public class ThreadPoolStrategy : IThreadPoolStrategy
     {
-        private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(300);
-        private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
-        private readonly long MinIntervalBetweenStarts_µs = TimeConsts.ms_to_µs(200);
-        private readonly long MinIntervalBetweenStartAnsStop_µs = TimeConsts.ms_to_µs(10_000);
+        private readonly long MinIntervalToStartThread_µs = TimeUtils.ms_to_µs(300);
+        private readonly long MinIntervalBetweenStops_µs =  TimeUtils.ms_to_µs(500);
+        private readonly long MinIntervalBetweenStarts_µs = TimeUtils.ms_to_µs(200);
+        private readonly long MinIntervalBetweenStartAnsStop_µs = TimeUtils.ms_to_µs(10_000);
 
         private readonly CyclicTimeRangesQueue _valuableIntervals = new();
         private IThreadPoolThreadsManagement _threadsManagement;
-        private long LastStopBreakpoint_µs = TimeConsts.GetTimestamp_µs();
-        private long LastStartBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+        private long LastStopBreakpoint_µs = TimeUtils.GetTimestamp_µs();
+        private long LastStartBreakpoint_µs = TimeUtils.GetTimestamp_µs();
         private volatile int _locked;
 
         public void Initialize(IThreadPoolThreadsManagement threadsManagement)
@@ -24,9 +25,9 @@ namespace DevTools.Threading
         /// <summary>
         /// Creates local strategy for given thread 
         /// </summary>
-        public IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrapper threadWrapper)
+        public IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrappingQueue threadWrappingQueue)
         {
-            return new SmartThreadPoolThreadStrategy(threadWrapper, this);
+            return new ThreadPoolThreadStrategy(threadWrappingQueue, this);
         }
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace DevTools.Threading
             }
 
             // check if can start new thread
-            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
+            var elapsed_µs = TimeUtils.GetTimestamp_µs() - LastStartBreakpoint_µs;
             if (elapsed_µs > MinIntervalBetweenStarts_µs)
             {
                 var avgWorkitemCost_µs = _valuableIntervals.GetAvg();
@@ -81,10 +82,10 @@ namespace DevTools.Threading
         /// And after this moment we can get a lot of work with no threads to get this work. So, we will stop them 1-by-1. 
         /// </summary>
         public ParallelismLevelChange RequestForThreadStop(
-            ThreadWrapper threadWrapper,
+            ThreadWrappingQueue threadWrappingQueue,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
-            var currentBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+            var currentBreakpoint_µs = TimeUtils.GetTimestamp_µs();
             var elapsedFromLastThreadStart_µs = currentBreakpoint_µs - LastStartBreakpoint_µs;
             var elapsedFromLastThreadStop_µs = currentBreakpoint_µs - LastStopBreakpoint_µs;
             
@@ -93,7 +94,7 @@ namespace DevTools.Threading
             {
                 if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
-                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(threadWrapper))
+                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(threadWrappingQueue))
                     {
                         Interlocked.Add(ref LastStopBreakpoint_µs, elapsedFromLastThreadStop_µs);
                         Interlocked.Exchange(ref _locked, 0);

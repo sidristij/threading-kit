@@ -20,10 +20,10 @@ namespace DevTools.Threading
         private readonly SmartThreadPoolQueue _defaultQueue;
         private readonly SmartThreadPoolQueue[] _queues = new SmartThreadPoolQueue[Math.Abs((int)ThreadPoolItemPriority.High - (int)ThreadPoolItemPriority.Low)];
         
-        private readonly ThreadWrapper _managementSegment = new ThreadWrapper(ManagementSegmentName);
-        private readonly HashSet<ThreadWrapper> _threads = new();
-        private readonly ConcurrentQueue<ThreadWrapper> _parkedSegments = new();
-        private readonly HashSet<ThreadWrapper> _frozenSegments = new();
+        private readonly ThreadWrappingQueue _managementSegment = new ThreadWrappingQueue(ManagementSegmentName);
+        private readonly HashSet<ThreadWrappingQueue> _threads = new();
+        private readonly ConcurrentQueue<ThreadWrappingQueue> _parkedSegments = new();
+        private readonly HashSet<ThreadWrappingQueue> _frozenSegments = new();
         
         private readonly ManualResetEvent _event = new(false);
         private readonly TThreadPoolStrategy _globalStrategy;
@@ -36,7 +36,7 @@ namespace DevTools.Threading
         {
             MinAllowedThreads = minAllowedThreads;
             MaxAllowedThreads = maxAllowedWorkingThreads > 0 ? maxAllowedWorkingThreads : Environment.ProcessorCount * 2;
-            SynchronizationContext = new SmartThreadPoolSynchronizationContext(this);
+            SynchronizationContext = new ThreadPoolSynchronizationContext(this);
             MaxHistoricalParallelismLevel = 0;
             
             for (int i = 0; i < _queues.Length; i++)
@@ -180,7 +180,7 @@ namespace DevTools.Threading
             return true;
         }
 
-        bool IThreadPoolThreadsManagement.NotifyAboutExecutionSegmentStopping(ThreadWrapper segment)
+        bool IThreadPoolThreadsManagement.NotifyAboutExecutionSegmentStopping(ThreadWrappingQueue segment)
         {
             lock (_threads)
             {
@@ -199,12 +199,12 @@ namespace DevTools.Threading
 
         private void CreateAdditionalThreadImpl()
         {
-            ThreadWrapper threadWrapper = default;
+            ThreadWrappingQueue threadWrappingQueue = default;
 
             if (_parkedSegments.TryDequeue(out var parked))
             {
                 _threads.Add(parked);
-                threadWrapper = parked;
+                threadWrappingQueue = parked;
             }
             else
             {
@@ -213,17 +213,17 @@ namespace DevTools.Threading
                     if (_threads.Count < MaxAllowedThreads)
                     {
                         var index = Interlocked.Increment(ref _threadsCounter);
-                        threadWrapper = new ThreadWrapper($"{WorkingSegmentName}: #{index}");
-                        _threads.Add(threadWrapper);
+                        threadWrappingQueue = new ThreadWrappingQueue($"{WorkingSegmentName}: #{index}");
+                        _threads.Add(threadWrappingQueue);
                     }
                 }
             }
 
-            if (threadWrapper != default)
+            if (threadWrappingQueue != default)
             {
                 var segmentLogic = new TThreadPoolLogic();
-                var strategy = _globalStrategy.CreateThreadStrategy(threadWrapper);
-                segmentLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrapper);
+                var strategy = _globalStrategy.CreateThreadStrategy(threadWrappingQueue);
+                segmentLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrappingQueue);
                 MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
             }
         }
@@ -233,7 +233,7 @@ namespace DevTools.Threading
             // plan check to management thread
             _timer = new Timer(_ =>
             {
-                _managementSegment.SetExecutingUnit(() => { CheckFrozenAndAddThread(); });
+                _managementSegment.SetExecutingUnit(CheckFrozenAndAddThread);
             }, default, _timerInterval, _timerInterval);
         }
 

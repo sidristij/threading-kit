@@ -6,6 +6,6 @@ namespace DevTools.Threading
         
         bool CreateAdditionalExecutionSegments(int count);
 
-        bool NotifyAboutExecutionSegmentStopping(ThreadWrapper segment);
+        bool NotifyAboutExecutionSegmentStopping(ThreadWrappingQueue segment);
     }
 }

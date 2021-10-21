@@ -1,18 +1,20 @@
-﻿namespace DevTools.Threading
+﻿using DevTools.Threading;
+
+namespace DevTools.Threading
 {
-    internal class SmartThreadPoolThreadStrategy : IThreadPoolThreadStrategy
+    internal class ThreadPoolThreadStrategy : IThreadPoolThreadStrategy
     {
-        private readonly long HasNoWorkUpperBoundThreshold_µs = TimeConsts.ms_to_µs(250);
-        private readonly ThreadWrapper _threadWrapper;
+        private readonly long HasNoWorkUpperBoundThreshold_µs = TimeUtils.ms_to_µs(250);
+        private readonly ThreadWrappingQueue _threadWrappingQueue;
         private readonly IThreadPoolStrategy _poolStrategy;
         private long _lastBreakpoint_µs;
 
-        public SmartThreadPoolThreadStrategy(
-            ThreadWrapper threadWrapper,
+        public ThreadPoolThreadStrategy(
+            ThreadWrappingQueue threadWrappingQueue,
             IThreadPoolStrategy poolStrategy)
         {
-            _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
-            _threadWrapper = threadWrapper;
+            _lastBreakpoint_µs = TimeUtils.GetTimestamp_µs();
+            _threadWrappingQueue = threadWrappingQueue;
             _poolStrategy = poolStrategy;
         }
 
@@ -25,7 +27,7 @@
         /// <returns>should callee stop its thread or not</returns>
         public ParallelismLevelChange RequestForParallelismLevelChanged(int globalQueueCount, int jobsDone, long range_µs)
         {
-            var currentBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+            var currentBreakpoint_µs = TimeUtils.GetTimestamp_µs();
             
             // has work: just remember timestamp
             if (jobsDone > 0)
@@ -47,7 +49,7 @@
                 _lastBreakpoint_µs = currentBreakpoint_µs;
                 
                 // ask for thread stop from global strategy
-                return _poolStrategy.RequestForThreadStop(_threadWrapper, globalQueueCount, jobsDone, range_µs);
+                return _poolStrategy.RequestForThreadStop(_threadWrappingQueue, globalQueueCount, jobsDone, range_µs);
             }
             
             return ParallelismLevelChange.NoChanges;

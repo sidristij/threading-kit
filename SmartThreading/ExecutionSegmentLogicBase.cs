@@ -8,27 +8,27 @@ namespace DevTools.Threading
     {
         private IThreadPool _threadPool;
         private SmartThreadPoolQueue _globalQueue;
-        private ThreadWrapper _threadWrapper;
+        private ThreadWrappingQueue _threadWrappingQueue;
         private IThreadPoolThreadStrategy _strategy;
         private ManualResetEvent _stoppedEvent;
         private long _lastBreakpoint_µs;
 
-        private readonly long DispatchQuantum_µs = TimeConsts.ms_to_µs(50);
-        private readonly long MaxTimeForDelegateRun_µs = TimeConsts.ms_to_µs(1500);
+        private readonly long DispatchQuantum_µs = TimeUtils.ms_to_µs(50);
+        private readonly long MaxTimeForDelegateRun_µs = TimeUtils.ms_to_µs(1500);
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
             SmartThreadPoolQueue globalQueue,
             IThreadPoolThreadStrategy strategy,
-            ThreadWrapper executionSegment)
+            ThreadWrappingQueue executionSegment)
         {
             _threadPool = threadPool;
             _globalQueue = globalQueue;
-            _threadWrapper = executionSegment;
+            _threadWrappingQueue = executionSegment;
             _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
-            _threadWrapper.SetExecutingUnit(this, ThreadWorker);
-            _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+            _threadWrappingQueue.SetExecutingUnit(this, ThreadWorker);
+            _lastBreakpoint_µs = TimeUtils.GetTimestamp_µs();
         }
 
         protected abstract void OnStarted();
@@ -43,8 +43,8 @@ namespace DevTools.Threading
         /// <returns></returns>
         protected internal bool CheckFrozen()
         {
-            return ((TimeConsts.GetTimestamp_µs() - _lastBreakpoint_µs) > MaxTimeForDelegateRun_µs) &&
-                   (_threadWrapper.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
+            return ((TimeUtils.GetTimestamp_µs() - _lastBreakpoint_µs) > MaxTimeForDelegateRun_µs) &&
+                   (_threadWrappingQueue.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
         }
         
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -65,7 +65,7 @@ namespace DevTools.Threading
                 while (askedToRemoveThread == false)
                 {
                     var hasWork = false;
-                    _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+                    _lastBreakpoint_µs = TimeUtils.GetTimestamp_µs();
                     
                     // >= 50ms to work
                     Dispatch(ref hasWork, ref askedToRemoveThread);
@@ -101,7 +101,7 @@ namespace DevTools.Threading
           
             //
             // Save the start time of internal loop
-            var start_in_µs = TimeConsts.GetTimestamp_µs();
+            var start_in_µs = TimeUtils.GetTimestamp_µs();
 
             //
             // Loop until our quantum expires or there is no work.
@@ -121,7 +121,7 @@ namespace DevTools.Threading
                 }
                 
                 // Check if the dispatch quantum has expired
-                elapsed_µs = TimeConsts.GetTimestamp_µs() - start_in_µs;
+                elapsed_µs = TimeUtils.GetTimestamp_µs() - start_in_µs;
                 if (elapsed_µs > DispatchQuantum_µs)
                 {
                     break;

@@ -4,10 +4,10 @@ namespace DevTools.Threading
     {
         void Initialize(IThreadPoolThreadsManagement threadsManagement);
         
-        IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrapper threadWrapper);
+        IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrappingQueue threadWrappingQueue);
         
         ParallelismLevelChange RequestForThreadStart(int globalQueueCount, int workItemsDone, long range_µs);
         
-        ParallelismLevelChange RequestForThreadStop(ThreadWrapper threadWrapper, int globalQueueCount, int workitemsDone, long range_µs);
+        ParallelismLevelChange RequestForThreadStop(ThreadWrappingQueue threadWrappingQueue, int globalQueueCount, int workitemsDone, long range_µs);
     }
 }

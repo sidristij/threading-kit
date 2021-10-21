@@ -5,11 +5,11 @@ namespace DevTools.Threading
     /// <summary>
     /// Sync context used for assigning jobs to thread pool from async/awaits
     /// </summary>
-    public class SmartThreadPoolSynchronizationContext : SynchronizationContext
+    public class ThreadPoolSynchronizationContext : SynchronizationContext
     {
         private readonly IThreadPool _threadPool;
 
-        public SmartThreadPoolSynchronizationContext(IThreadPool threadPool)
+        public ThreadPoolSynchronizationContext(IThreadPool threadPool)
         {
             _threadPool = threadPool;
         }

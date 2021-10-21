@@ -5,11 +5,9 @@
         /// <summary>
         /// Should be called at unit of work execution end 
         /// </summary>
-        /// <param name="globalQueueCount">Count of items in global work queue to understand volume</param>
-        /// <param name="jobsDone"></param>
-        /// <param name="range_µs">some period of work. -1 == didn't spin</param>
-        /// <param name="workitemsDone">items done in <paramref name="range_µs"/> period</param>
-        /// <returns>should callee stop its thread or not</returns>
+        /// <param name="globalQueueCount">Count of items in global work queue</param>
+        /// <param name="jobsDone">Items done in <paramref name="range_µs"/> period</param>
+        /// <param name="range_µs">Some period of work. -1 == didn't spin</param>
         ParallelismLevelChange RequestForParallelismLevelChanged(int globalQueueCount, int jobsDone, long range_µs);
     }
 

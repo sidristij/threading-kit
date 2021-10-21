@@ -1,8 +1,9 @@
 using System.Threading.Tasks;
+using DevTools.Threading;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPoolLogic : ExecutionSegmentLogicBase
+    public class ThreadPoolLogic : ExecutionSegmentLogicBase
     {
         protected override void OnStarted()
         {

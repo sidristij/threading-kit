@@ -4,20 +4,20 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class ThreadWrapper
+    public class ThreadWrappingQueue
     {
         private readonly string _threadName;
         private static int _counter = 1;
         private readonly int _index = 1;
         private readonly Thread _thread;
-        private volatile SegmentStatus _status = SegmentStatus.Paused;
+        private volatile ThreadWrapperStatus _status = ThreadWrapperStatus.Paused;
         private volatile bool _stoppingRequested = false;
         private volatile ConcurrentQueue<QueueItem> _nextActions = new();
         private readonly AutoResetEvent _event;
 
         internal bool Frozen = false;
 
-        public ThreadWrapper(string threadName = default)
+        public ThreadWrappingQueue(string threadName = default)
         {
             Logic = default;
             _threadName = threadName;
@@ -42,7 +42,7 @@ namespace DevTools.Threading
 
         public void SetExecutingUnit(ExecutionSegmentLogicBase logic, Action action)
         {
-            if (_status == SegmentStatus.Stopped)
+            if (_status == ThreadWrapperStatus.Stopped)
             {
                 throw new ThreadPoolException("Cannot set next action to the not running thread");
             }
@@ -54,7 +54,7 @@ namespace DevTools.Threading
             });
 
             // if status is still Paused, knock it 
-            if (_status == SegmentStatus.Paused)
+            if (_status == ThreadWrapperStatus.Paused)
             {
                 _event.Set();
             }
@@ -66,24 +66,24 @@ namespace DevTools.Threading
             {
                 if (_nextActions.TryDequeue(out var queueItem))
                 {
-                    _status = SegmentStatus.Running;
+                    _status = ThreadWrapperStatus.Running;
                     Logic = queueItem.Logic;
                     queueItem.Action();
                     Logic = default;
                 }
                 else
                 {
-                    _status = SegmentStatus.Paused;
+                    _status = ThreadWrapperStatus.Paused;
                     _event.WaitOne();
                 }
             }
 
-            _status = SegmentStatus.Stopped;
+            _status = ThreadWrapperStatus.Stopped;
          }
 
         private string BuildName()
         {
-            return _threadName ?? $"{nameof(ThreadWrapper)} #{_index}";
+            return _threadName ?? $"{nameof(ThreadWrappingQueue)} #{_index}";
         }
 
         public override int GetHashCode()
@@ -93,7 +93,7 @@ namespace DevTools.Threading
 
         public override bool Equals(object obj)
         {
-            if(obj is ThreadWrapper es)
+            if(obj is ThreadWrappingQueue es)
             {
                 return es._thread == _thread;
             }
@@ -104,6 +104,13 @@ namespace DevTools.Threading
         {
             public ExecutionSegmentLogicBase Logic;
             public Action Action;
+        }
+
+        private enum ThreadWrapperStatus
+        {
+            Running,
+            Paused,
+            Stopped
         }
     }
 }
