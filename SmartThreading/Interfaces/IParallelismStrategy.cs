@@ -1,10 +1,10 @@
 namespace DevTools.Threading
 {
-    public interface IThreadPoolStrategy
+    public interface IParallelismStrategy
     {
         void Initialize(IThreadPoolThreadsManagement threadsManagement);
         
-        IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrappingQueue threadWrappingQueue);
+        IParallelismLocalStrategy CreateLocalStrategy(ThreadWrappingQueue threadWrappingQueue);
         
         ParallelismLevelChange RequestForThreadStart(int globalQueueCount, int workItemsDone, long range_µs);
         

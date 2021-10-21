@@ -7,7 +7,6 @@ namespace DevTools.Threading
     {
         private static readonly long ticks_in_µs = Stopwatch.Frequency / 1_000_000;
         private static readonly long ticks_in_ms = Stopwatch.Frequency / 1_000;
-        private static readonly long ms_to_µs_multiplier = 1_000;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long GetTimestamp_µs() => Stopwatch.GetTimestamp() / ticks_in_µs;

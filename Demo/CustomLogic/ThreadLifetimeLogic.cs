@@ -3,7 +3,7 @@ using DevTools.Threading;
 
 namespace DevTools.Threading
 {
-    public class ThreadPoolLogic : ExecutionSegmentLogicBase
+    public class ThreadLifetimeLogic : ExecutionSegmentLogicBase
     {
         protected override void OnStarted()
         {

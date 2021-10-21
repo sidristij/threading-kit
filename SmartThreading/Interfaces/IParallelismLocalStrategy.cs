@@ -1,6 +1,6 @@
 ﻿namespace DevTools.Threading
 {
-    public interface IThreadPoolThreadStrategy
+    public interface IParallelismLocalStrategy
     {
         /// <summary>
         /// Should be called at unit of work execution end 
