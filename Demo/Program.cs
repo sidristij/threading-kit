@@ -21,8 +21,8 @@ namespace Demo
 
         static void TestMillionOfSuperShortMethods()
         {
-            // SmartThreadPool<object> pool = default;
-            var pool = new SmartThreadPool<object>(4, Environment.ProcessorCount*2);
+            // SmartThreadPool<SmartThreadPoolLogic, SmartThreadPoolStrategy, object> pool = default;
+            var pool = new SmartThreadPool<SmartThreadPoolLogic, SmartThreadPoolStrategy, object>(4, Environment.ProcessorCount*2);
             pool.InitializedWaitHandle.WaitOne();
 
             // var netPool = false;
@@ -86,7 +86,7 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static int TestSmartPool(SmartThreadPool<object> pool)
+        private static int TestSmartPool(IThreadPool<object> pool)
         {
             var sw = Stopwatch.StartNew();
             var @event = new CountdownEvent(count);
@@ -143,7 +143,7 @@ namespace Demo
         
         static void TestBlockedThreadsSmart()
         {
-            var pool = new SmartThreadPool<ulong>(minAllowedThreads: 16, maxAllowedWorkingThreads: 16);
+            var pool = new SmartThreadPool<SmartThreadPoolLogic, SmartThreadPoolStrategy, ulong>(minAllowedThreads: 16, maxAllowedWorkingThreads: 16);
             pool.InitializedWaitHandle.WaitOne();
             
             var countdownEvent = new CountdownEvent(16);

@@ -9,31 +9,31 @@ namespace DevTools.Threading
         [ThreadStatic]
         public static ThreadLocals instance;
 
-        public readonly IThreadPoolQueue GlobalQueue;
         public volatile int Count;
 
-        private readonly ConcurrentQueue<PoolWork> _localQueue;
+        private readonly IThreadPoolQueue _globalQueue;
+        private readonly ConcurrentQueue<PoolActionUnit> _localQueue;
         private readonly ThreadsLocalQueuesList _queueList;
 
         public ThreadLocals(
             IThreadPoolQueue tpq,
             ThreadsLocalQueuesList queueList)
         {
-            GlobalQueue = tpq;
+            _globalQueue = tpq;
             _queueList = queueList;
             _localQueue = new();
             _queueList.Add(_localQueue);
         }
 
-        public void Enqueue(PoolWork poolWork)
+        public void Enqueue(PoolActionUnit poolActionUnit)
         {
             Interlocked.Increment(ref Count);
-            _localQueue.Enqueue(poolWork);
+            _localQueue.Enqueue(poolActionUnit);
         }
         
-        public bool TryDequeue(out PoolWork poolWork)
+        public bool TryDequeue(out PoolActionUnit poolActionUnit)
         {
-            if (_localQueue.TryDequeue(out poolWork))
+            if (_localQueue.TryDequeue(out poolActionUnit))
             {
                 Interlocked.Decrement(ref Count);
                 return true;
@@ -46,7 +46,7 @@ namespace DevTools.Threading
         {
             while (_localQueue.TryDequeue(out var cb))
             {
-                GlobalQueue.Enqueue(cb);
+                _globalQueue.Enqueue(cb);
             }
         }
 

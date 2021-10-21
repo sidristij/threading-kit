@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    internal class SmartThreadPoolStrategy : IThreadPoolStrategy
+    public class SmartThreadPoolStrategy : IThreadPoolStrategy
     {
         private readonly long MinIntervalToStartThread_µs = TimeConsts.ms_to_µs(300);
         private readonly long MinIntervalBetweenStops_µs =  TimeConsts.ms_to_µs(500);
@@ -11,16 +11,24 @@ namespace DevTools.Threading
         private readonly long MinIntervalBetweenStartAnsStop_µs = TimeConsts.ms_to_µs(10_000);
 
         private readonly CyclicTimeRangesQueue _valuableIntervals = new();
-        private readonly IThreadPoolThreadsManagement _threadsManagement;
+        private IThreadPoolThreadsManagement _threadsManagement;
         private long LastStopBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         private long LastStartBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         private volatile int _locked;
 
-        public SmartThreadPoolStrategy(IThreadPoolThreadsManagement threadsManagement)
+        public void Initialize(IThreadPoolThreadsManagement threadsManagement)
         {
             _threadsManagement = threadsManagement;
         }
-        
+
+        /// <summary>
+        /// Creates local strategy for given thread 
+        /// </summary>
+        public IThreadPoolThreadStrategy CreateThreadStrategy(ThreadWrapper threadWrapper)
+        {
+            return new SmartThreadPoolThreadStrategy(threadWrapper, this);
+        }
+
         /// <summary>
         /// Local strategy have some work and asks to help to parallelize it. We should increment threads count 1-by-1. 
         /// </summary>
@@ -73,7 +81,7 @@ namespace DevTools.Threading
         /// And after this moment we can get a lot of work with no threads to get this work. So, we will stop them 1-by-1. 
         /// </summary>
         public ParallelismLevelChange RequestForThreadStop(
-            ThreadWrapper executionSegment,
+            ThreadWrapper threadWrapper,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
             var currentBreakpoint_µs = TimeConsts.GetTimestamp_µs();
@@ -85,7 +93,7 @@ namespace DevTools.Threading
             {
                 if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
-                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(executionSegment))
+                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(threadWrapper))
                     {
                         Interlocked.Add(ref LastStopBreakpoint_µs, elapsedFromLastThreadStop_µs);
                         Interlocked.Exchange(ref _locked, 0);

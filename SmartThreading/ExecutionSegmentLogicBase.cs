@@ -33,12 +33,10 @@ namespace DevTools.Threading
 
         protected abstract void OnStarted();
         
-        protected abstract Task OnRun(PoolWork poolWork);
+        protected abstract Task OnRun(PoolActionUnit poolActionUnit);
         
         protected abstract void OnStopping();
         
-        private IThreadPoolQueue ThreadPoolQueue => _globalQueue;
-
         /// <summary>
         /// Checks that thread is blocked and delegate isn't responding for 1,5s
         /// </summary>
@@ -54,19 +52,9 @@ namespace DevTools.Threading
         {
             try
             {
-                // Assign access to my shared queue of local items
-                var tl = ThreadLocals.instance; 
-                if (tl == null)
-                {
-                    tl = new ThreadLocals(
-                        ThreadPoolQueue,
-                        ((IThreadPoolInternalData)ThreadPoolQueue).QueueList);
-                    ThreadLocals.instance = tl;
-                }
+                // Init thread locals
+                MakeBasicInitialization();
 
-                // Set current sync context
-                SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
-                
                 // Notify user code
                 OnStarted();
 
@@ -109,7 +97,7 @@ namespace DevTools.Threading
             var workCounter = 0;
             var elapsed_µs = -1L;
             
-            PoolWork workItem = default;
+            PoolActionUnit actionUnitItem = default;
           
             //
             // Save the start time of internal loop
@@ -119,10 +107,10 @@ namespace DevTools.Threading
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
-                if(workQueue.TryDequeue(ref workItem))
+                if(workQueue.TryDequeue(ref actionUnitItem))
                 {
                     hasWork = true;
-                    OnRun(workItem);
+                    OnRun(actionUnitItem);
                     workCounter++;
                 }
                 else
@@ -147,6 +135,21 @@ namespace DevTools.Threading
                 tl.TransferLocalWork();
                 askedToFinishThread = true;
             }
+        }
+        
+        private void MakeBasicInitialization()
+        {
+            // Assign access to my shared queue of local items
+            var tl = ThreadLocals.instance;
+            if (tl == null)
+            {
+                tl = new ThreadLocals(
+                    _globalQueue, ((IThreadPoolInternalData)_globalQueue).QueueList);
+                ThreadLocals.instance = tl;
+            }
+
+            // Set current sync context
+            SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
         }
     }
 }

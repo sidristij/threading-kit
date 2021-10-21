@@ -6,7 +6,7 @@ namespace DevTools.Threading
     internal class SmartThreadPoolQueue : IThreadPoolQueue, IThreadPoolInternalData
     {
         // Global queue of tasks with high cost of getting items
-        private readonly ConcurrentQueue<PoolWork> _workQueue = new();
+        private readonly ConcurrentQueue<PoolActionUnit> _workQueue = new();
         private volatile int _globalCounter;
         
         // Set of local for each thread queues
@@ -16,34 +16,34 @@ namespace DevTools.Threading
 
         public int GlobalCount => _globalCounter;
         
-        public void Enqueue(PoolWork poolWork, bool preferLocal)
+        public void Enqueue(PoolActionUnit poolActionUnit, bool preferLocal)
         {
             if (preferLocal)
             {
                 var tl = ThreadLocals.instance;
                 if (tl != null)
                 {
-                    tl.Enqueue(poolWork);
+                    tl.Enqueue(poolActionUnit);
                     return;
                 }
             }
 
-            _workQueue.Enqueue(poolWork);
+            _workQueue.Enqueue(poolActionUnit);
             Interlocked.Increment(ref _globalCounter);
         }
 
-        public bool TryDequeue(ref PoolWork poolWork)
+        public bool TryDequeue(ref PoolActionUnit poolActionUnit)
         {
             var localWsq = ThreadLocals.instance;
 
             // try read local queue
-            if (localWsq.Count > 0 && localWsq.TryDequeue(out poolWork))
+            if (localWsq.Count > 0 && localWsq.TryDequeue(out poolActionUnit))
             {
                 return true;
             }
             
             // try read single item
-            if (_workQueue.TryDequeue(out poolWork))
+            if (_workQueue.TryDequeue(out poolActionUnit))
             {
                 Interlocked.Decrement(ref _globalCounter);
                 return true;

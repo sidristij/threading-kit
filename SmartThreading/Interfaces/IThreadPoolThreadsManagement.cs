@@ -1,6 +1,6 @@
 namespace DevTools.Threading
 {
-    internal interface IThreadPoolThreadsManagement
+    public interface IThreadPoolThreadsManagement
     {
         int ParallelismLevel { get; }
         

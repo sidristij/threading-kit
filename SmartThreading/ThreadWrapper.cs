@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    internal class ThreadWrapper
+    public class ThreadWrapper
     {
         private readonly string _threadName;
         private static int _counter = 1;

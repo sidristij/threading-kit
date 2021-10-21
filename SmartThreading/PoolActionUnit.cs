@@ -9,7 +9,7 @@ namespace DevTools.Threading
     /// <summary>
     /// Wrapper for unit of work for scheduling into dedicated thread pool 
     /// </summary>
-    public unsafe struct PoolWork
+    public unsafe struct PoolActionUnit
     {
         private object _state;
         private PoolAction _action;
@@ -18,11 +18,11 @@ namespace DevTools.Threading
         private delegate*<object, void> _action_ptr;
         
         // second parameter is just FYI: here can be argument. Real type should be built on real time. Size can be any: [1, ∞)
-        private delegate*<ref PoolWork, object, Task> _wrapper_ptr;
+        private delegate*<ref PoolActionUnit, object, Task> _wrapper_ptr;
 
         public Task Run<TParam>(TParam param) =>
             // always runs with two parameters. so, callees should reflect this principle 
-            ((delegate*<ref PoolWork, TParam, Task>)_wrapper_ptr)(ref this, param);
+            ((delegate*<ref PoolActionUnit, TParam, Task>)_wrapper_ptr)(ref this, param);
 
         public void Init(PoolAction action, object state)
         {
@@ -63,36 +63,36 @@ namespace DevTools.Threading
         {
             _action_ptr = (delegate*<object, void>)action;
             _state = state;
-            delegate*<ref PoolWork, TArg, Task> tmp = &RegularMethodPointerWithParameterWrapper<TArg>;
-            _wrapper_ptr = (delegate*<ref PoolWork, object, Task>)tmp;
+            delegate*<ref PoolActionUnit, TArg, Task> tmp = &RegularMethodPointerWithParameterWrapper<TArg>;
+            _wrapper_ptr = (delegate*<ref PoolActionUnit, object, Task>)tmp;
         }
 
         #region Delegating methods
-        private static Task RegularMethodWrapper(ref PoolWork unit, object _)
+        private static Task RegularMethodWrapper(ref PoolActionUnit unit, object _)
         {
             unit._action(unit._state);
             return Task.CompletedTask;
         }
 
-        private static Task RegularMethodPointerWrapper(ref PoolWork unit, object _)
+        private static Task RegularMethodPointerWrapper(ref PoolActionUnit unit, object _)
         {
             unit._action_ptr(unit._state);
             return Task.CompletedTask;
         }
 
-        private static Task RegularMethodWithParameterWrapper<TParam>(ref PoolWork unit, TParam parameter)
+        private static Task RegularMethodWithParameterWrapper<TParam>(ref PoolActionUnit unit, TParam parameter)
         {
             Unsafe.As<PoolAction<TParam>>(unit._action)(parameter, unit._state);
             return Task.CompletedTask;
         }
 
-        private static Task RegularMethodPointerWithParameterWrapper<T>(ref PoolWork unit, T parameter)
+        private static Task RegularMethodPointerWithParameterWrapper<T>(ref PoolActionUnit unit, T parameter)
         {
             ((delegate*<T, object, void>)unit._action_ptr)(parameter, unit._state);
             return Task.CompletedTask;
         }
 
-        private static Task RegularMethodAsyncWrapper(ref PoolWork unit, object _)
+        private static Task RegularMethodAsyncWrapper(ref PoolActionUnit unit, object _)
         {
             var execute = unit._action;
             var state = unit._state;
@@ -101,7 +101,7 @@ namespace DevTools.Threading
             return task.Unwrap();
         }
 
-        private static Task RegularMethodWithParameterAsyncWrapper<TParam>(ref PoolWork unit, TParam param)
+        private static Task RegularMethodWithParameterAsyncWrapper<TParam>(ref PoolActionUnit unit, TParam param)
         {
             var execute = unit._action;
             var state = unit._state;

@@ -6,7 +6,10 @@ using System.Threading;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
+    public class SmartThreadPool<TThreadPoolLogic, TThreadPoolStrategy, TPoolParameter> : 
+        IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
+        where TThreadPoolStrategy : IThreadPoolStrategy, new()
+        where TThreadPoolLogic : ExecutionSegmentLogicBase, new() 
     {
         #region privates
         private const string ManagementSegmentName = "Management segment";
@@ -23,7 +26,7 @@ namespace DevTools.Threading
         private readonly HashSet<ThreadWrapper> _frozenSegments = new();
         
         private readonly ManualResetEvent _event = new(false);
-        private readonly SmartThreadPoolStrategy _globalStrategy;
+        private readonly TThreadPoolStrategy _globalStrategy;
         private Timer _timer;
         private readonly TimeSpan _timerInterval = TimeSpan.FromSeconds(1);
         private volatile int _threadsCounter;
@@ -43,7 +46,9 @@ namespace DevTools.Threading
 
             _defaultQueue = _queues[(int)ThreadPoolItemPriority.Default];
             
-            _globalStrategy = new SmartThreadPoolStrategy(this);
+            _globalStrategy = new TThreadPoolStrategy();
+            _globalStrategy.Initialize(this);
+            
             _managementSegment.SetExecutingUnit(() =>
             {
                 for (var i = 0; i < MinAllowedThreads; i++)
@@ -83,9 +88,9 @@ namespace DevTools.Threading
         /// </summary>
         public void Enqueue(PoolAction unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -93,9 +98,9 @@ namespace DevTools.Threading
         /// </summary>
         public unsafe void Enqueue(delegate*<object, void> unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -103,9 +108,9 @@ namespace DevTools.Threading
         /// </summary>
         public void Enqueue(PoolAction<TPoolParameter> unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -113,9 +118,9 @@ namespace DevTools.Threading
         /// </summary>
         public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -123,9 +128,9 @@ namespace DevTools.Threading
         /// </summary>
         public void Enqueue(PoolActionAsync unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -133,9 +138,9 @@ namespace DevTools.Threading
         /// </summary>
         public void Enqueue(PoolActionAsync<TPoolParameter> unit, object outer = default, bool preferLocal = true)
         {
-            PoolWork poolWork = default;
-            poolWork.Init(unit, outer);
-            _defaultQueue.Enqueue(poolWork, preferLocal);
+            PoolActionUnit poolActionUnit = default;
+            poolActionUnit.Init(unit, outer);
+            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
         }
         
         /// <summary>
@@ -158,7 +163,7 @@ namespace DevTools.Threading
                 workload.Delegate(workload.InternalState);
             }
 
-            var poolWork = default(PoolWork);
+            var poolWork = default(PoolActionUnit);
             poolWork.Init(ExecutionUnitCallback, wfsoState);
             _defaultQueue.Enqueue(poolWork, false);
         }
@@ -216,8 +221,8 @@ namespace DevTools.Threading
 
             if (threadWrapper != default)
             {
-                var segmentLogic = new SmartThreadPoolLogic();
-                var strategy = new SmartThreadPoolThreadStrategy(threadWrapper, _globalStrategy);
+                var segmentLogic = new TThreadPoolLogic();
+                var strategy = _globalStrategy.CreateThreadStrategy(threadWrapper);
                 segmentLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrapper);
                 MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
             }
