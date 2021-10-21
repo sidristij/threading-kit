@@ -241,7 +241,7 @@ namespace DevTools.Threading
         {
             var frozenCounter = 0;
             if(_activeThreads == null) return;
-            foreach (var wrappingQueue in _activeThreads.ToArray())
+            foreach (var wrappingQueue in _activeThreads)
             {
                 if (wrappingQueue.Logic.CheckFrozen())
                 {

@@ -12,12 +12,14 @@ namespace DevTools.Threading
     public unsafe struct PoolActionUnit
     {
         private object _state;
+        
+        // real type determinated by wrapping method
         private PoolAction _action;
         
-        // first parameter is just FYI: here can be argument. Real type should be built on real time. Size can be any: [1, ∞)
+        // real type determinated by wrapping method
         private delegate*<object, void> _action_ptr;
         
-        // second parameter is just FYI: here can be argument. Real type should be built on real time. Size can be any: [1, ∞)
+        // wrapping method used to determine what signature should be used to call _action or _action_ptr
         private delegate*<ref PoolActionUnit, object, Task> _wrapper_ptr;
 
         public Task Run<TParam>(TParam param) =>
