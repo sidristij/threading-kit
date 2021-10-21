@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,10 +27,16 @@ namespace DevTools.Threading
             _threadWrapper = executionSegment;
             _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
-            _threadWrapper.SetExecutingUnit(this, SegmentWorker);
+            _threadWrapper.SetExecutingUnit(this, ThreadWorker);
             _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
         }
 
+        protected abstract void OnStarted();
+        
+        protected abstract Task OnRun(PoolWork poolWork);
+        
+        protected abstract void OnStopping();
+        
         private IThreadPoolQueue ThreadPoolQueue => _globalQueue;
 
         /// <summary>
@@ -42,65 +49,64 @@ namespace DevTools.Threading
                    (_threadWrapper.GetThreadStatus() & ThreadState.WaitSleepJoin) == ThreadState.WaitSleepJoin;
         }
         
-        private void SegmentWorker(object ctx)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        private void ThreadWorker()
         {
-            // Assign access to my shared queue of local items
-            var tl = ThreadLocals.instance; 
-            if (tl == null)
+            try
             {
-                tl = new ThreadLocals(
-                    ThreadPoolQueue,
-                    ((IThreadPoolInternalData)ThreadPoolQueue).QueueList);
-                ThreadLocals.instance = tl;
-            }
-
-            // Set current sync context
-            SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
-            
-            // Notify user code
-            OnStarted();
-
-            // work cycle
-            var askedToRemoveThread = false;
-            var spinner = new SpinWait();
-            
-            while (askedToRemoveThread == false)
-            {
-                var hasWork = false;
-                _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
-                
-                // >= 50ms to work
-                Dispatch(ref hasWork, ref askedToRemoveThread);
-                
-                if (!hasWork)
+                // Assign access to my shared queue of local items
+                var tl = ThreadLocals.instance; 
+                if (tl == null)
                 {
-                    spinner.SpinOnce();
+                    tl = new ThreadLocals(
+                        ThreadPoolQueue,
+                        ((IThreadPoolInternalData)ThreadPoolQueue).QueueList);
+                    ThreadLocals.instance = tl;
                 }
+
+                // Set current sync context
+                SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
+                
+                // Notify user code
+                OnStarted();
+
+                // work cycle
+                var askedToRemoveThread = false;
+                var spinner = new SpinWait();
+                
+                while (askedToRemoveThread == false)
+                {
+                    var hasWork = false;
+                    _lastBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+                    
+                    // >= 50ms to work
+                    Dispatch(ref hasWork, ref askedToRemoveThread);
+                    
+                    if (!hasWork)
+                    {
+                        spinner.SpinOnce();
+                    }
+                }
+                
+                // Make stopping logic
+                OnStopping();
+                
+                // cleanup thread locals
+                ThreadLocals.instance = default;
             }
-            
-            // Make stopping logic
-            OnStopping();
-            
-            ThreadLocals.instance = default;
-            _stoppedEvent.Set();
-            _stoppedEvent.Dispose();
+            finally
+            {
+                _stoppedEvent.Set();
+                _stoppedEvent.Dispose();
+            }
         }
 
-        protected abstract void OnStarted();
-        
-        protected abstract void OnStopping();
-
-        protected virtual Task OnRun(PoolWork poolWork)
-        {
-            return poolWork.Run<object>(null);
-        }
-        
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
             var workQueue = _globalQueue;
             var tl = ThreadLocals.instance;
             var workCounter = 0;
-            var cycles = -1;
             var elapsed_µs = -1L;
             
             PoolWork workItem = default;
@@ -113,9 +119,6 @@ namespace DevTools.Threading
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
-                // results 0 for first time
-                cycles++;
-                
                 if(workQueue.TryDequeue(ref workItem))
                 {
                     hasWork = true;
@@ -137,6 +140,8 @@ namespace DevTools.Threading
                 }
             }
             
+            //
+            // Request for current thread stop or start additional thread
             if (_strategy.RequestForParallelismLevelChanged(_globalQueue.GlobalCount, workCounter, elapsed_µs) == ParallelismLevelChange.Decrease)
             {
                 tl.TransferLocalWork();

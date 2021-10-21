@@ -42,9 +42,9 @@ namespace DevTools.Threading
                 var avgWorkitemCost_µs = _valuableIntervals.GetAvg();
                 var parallelism = _threadsManagement.ParallelismLevel;
                 var workitemsPerThreadTheoretical = globalQueueCount / parallelism;
-                var timeToExecute_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
+                var tailTimeTheoretical_µs = avgWorkitemCost_µs * workitemsPerThreadTheoretical;
 
-                if (timeToExecute_µs > MinIntervalToStartThread_µs)
+                if (tailTimeTheoretical_µs > MinIntervalToStartThread_µs)
                 {
                     // only one thread can enter this section. Other threads will skip it 
                     if (Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
@@ -52,7 +52,8 @@ namespace DevTools.Threading
                         try
                         {
                             Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
-                            _threadsManagement.CreateAdditionalExecutionSegments(Math.Max(1, (int)(timeToExecute_µs / MinIntervalToStartThread_µs / 2)));
+                            _threadsManagement.CreateAdditionalExecutionSegments(
+                                Math.Max(1, (int)((tailTimeTheoretical_µs / MinIntervalToStartThread_µs - parallelism) / 2)));
                         }
                         finally
                         {
@@ -75,22 +76,25 @@ namespace DevTools.Threading
             ThreadWrapper executionSegment,
             int globalQueueCount, int workItemsDone, long range_µs)
         {
-            var fromStartElapsed_µs = TimeConsts.GetTimestamp_µs() - LastStartBreakpoint_µs;
-            var elapsed_µs = TimeConsts.GetTimestamp_µs() - LastStopBreakpoint_µs;
-            if (fromStartElapsed_µs > MinIntervalBetweenStartAnsStop_µs && 
-                elapsed_µs > MinIntervalBetweenStops_µs)
+            var currentBreakpoint_µs = TimeConsts.GetTimestamp_µs();
+            var elapsedFromLastThreadStart_µs = currentBreakpoint_µs - LastStartBreakpoint_µs;
+            var elapsedFromLastThreadStop_µs = currentBreakpoint_µs - LastStopBreakpoint_µs;
+            
+            if (elapsedFromLastThreadStart_µs > MinIntervalBetweenStartAnsStop_µs && 
+                elapsedFromLastThreadStop_µs > MinIntervalBetweenStops_µs)
             {
                 if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
                     if(_threadsManagement.NotifyAboutExecutionSegmentStopping(executionSegment))
                     {
-                        Interlocked.Add(ref LastStopBreakpoint_µs, elapsed_µs);
+                        Interlocked.Add(ref LastStopBreakpoint_µs, elapsedFromLastThreadStop_µs);
                         Interlocked.Exchange(ref _locked, 0);
                         return ParallelismLevelChange.Decrease;
                     }
-                    Interlocked.Exchange(ref _locked, 0);
+                    _locked = 0;
                 }
             }
+            
             return ParallelismLevelChange.NoChanges;
         }
     }

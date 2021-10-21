@@ -8,6 +8,7 @@ namespace DevTools.Threading
 {
     public class SmartThreadPool<TPoolParameter> : IThreadPool<TPoolParameter>, IThreadPoolThreadsManagement
     {
+        #region privates
         private const string ManagementSegmentName = "Management segment";
         private const string WorkingSegmentName = "Working segment";
         private readonly int MaxAllowedThreads;
@@ -25,8 +26,9 @@ namespace DevTools.Threading
         private readonly SmartThreadPoolStrategy _globalStrategy;
         private Timer _timer;
         private readonly TimeSpan _timerInterval = TimeSpan.FromSeconds(1);
-        private volatile int _threadsCounter = 0;
-        
+        private volatile int _threadsCounter;
+        #endregion
+            
         public SmartThreadPool(int minAllowedThreads = 1, int maxAllowedWorkingThreads = -1)
         {
             MinAllowedThreads = minAllowedThreads;
@@ -42,7 +44,7 @@ namespace DevTools.Threading
             _defaultQueue = _queues[(int)ThreadPoolItemPriority.Default];
             
             _globalStrategy = new SmartThreadPoolStrategy(this);
-            _managementSegment.SetExecutingUnit(_ =>
+            _managementSegment.SetExecutingUnit(() =>
             {
                 for (var i = 0; i < MinAllowedThreads; i++)
                 {
@@ -79,7 +81,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with regular delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnit unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolAction unit, object outer = default, bool preferLocal = true)
         {
             PoolWork poolWork = default;
             poolWork.Init(unit, outer);
@@ -99,7 +101,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with parametrized delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnit<TPoolParameter> unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolAction<TPoolParameter> unit, object outer = default, bool preferLocal = true)
         {
             PoolWork poolWork = default;
             poolWork.Init(unit, outer);
@@ -119,7 +121,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with non-parametrized async delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnitAsync unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolActionAsync unit, object outer = default, bool preferLocal = true)
         {
             PoolWork poolWork = default;
             poolWork.Init(unit, outer);
@@ -129,7 +131,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with parametrized async delegate 
         /// </summary>
-        public void Enqueue(ExecutionUnitAsync<TPoolParameter> unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolActionAsync<TPoolParameter> unit, object outer = default, bool preferLocal = true)
         {
             PoolWork poolWork = default;
             poolWork.Init(unit, outer);
@@ -139,7 +141,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with WaitHandle and non-parametrized continuation 
         /// </summary>
-        public void RegisterWaitForSingleObject(WaitHandle handle, ExecutionUnit unit, object outer = default, TimeSpan timeout = default)
+        public void RegisterWaitForSingleObject(WaitHandle handle, PoolAction unit, object outer = default, TimeSpan timeout = default)
         {
             var wfsoState = new WaitForSingleObjectState
             {
@@ -165,7 +167,7 @@ namespace DevTools.Threading
         {
             for (var i = 0; i < count; i++)
             {
-                _managementSegment.SetExecutingUnit(_ =>
+                _managementSegment.SetExecutingUnit(() =>
                 {
                     CreateAdditionalThreadImpl();
                 });
@@ -190,7 +192,7 @@ namespace DevTools.Threading
             return false;
         }
 
-        private bool CreateAdditionalThreadImpl()
+        private void CreateAdditionalThreadImpl()
         {
             ThreadWrapper threadWrapper = default;
 
@@ -218,10 +220,7 @@ namespace DevTools.Threading
                 var strategy = new SmartThreadPoolThreadStrategy(threadWrapper, _globalStrategy);
                 segmentLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrapper);
                 MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
-                return true;
             }
-
-            return false;
         }
 
         private void StartFrozenThreadsCheck()
@@ -229,7 +228,7 @@ namespace DevTools.Threading
             // plan check to management thread
             _timer = new Timer(_ =>
             {
-                _managementSegment.SetExecutingUnit(_ => { CheckFrozenAndAddThread(); });
+                _managementSegment.SetExecutingUnit(() => { CheckFrozenAndAddThread(); });
             }, default, _timerInterval, _timerInterval);
         }
 
@@ -250,7 +249,7 @@ namespace DevTools.Threading
                         {
                             _frozenSegments.Add(segment);
                             segment.RequestThreadStop();
-                            segment.SetExecutingUnit(_ =>
+                            segment.SetExecutingUnit(() =>
                             {
                                 _frozenSegments.Remove(segment);
                             });
@@ -271,7 +270,7 @@ namespace DevTools.Threading
             public object InternalState;
             public WaitHandle Handle;
             public TimeSpan Timeout;
-            public ExecutionUnit Delegate;
+            public PoolAction Delegate;
         }
     }
 }

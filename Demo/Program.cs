@@ -12,7 +12,7 @@ namespace Demo
         {
             // TestBlockedThreadsGeneric();
             // TestBlockedThreadsSmart();
-            // TestMillionOfSuperShortMethods();
+            TestMillionOfSuperShortMethods();
         }
         
         #region Test million of super short methods
@@ -25,9 +25,9 @@ namespace Demo
             var pool = new SmartThreadPool<object>(4, Environment.ProcessorCount*2);
             pool.InitializedWaitHandle.WaitOne();
 
-            var netPool = false;
+            // var netPool = false;
             var ourPool = true;
-            // var netPool = true;
+            var netPool = true;
             // var ourPool = false;
             
             var sum_regular = 0;
@@ -116,7 +116,7 @@ namespace Demo
         
         static void TestBlockedThreadsGeneric()
         {
-            ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
+            ThreadPool.GetMaxThreads(out _, out var completionPortThreads);
             Console.WriteLine(ThreadPool.SetMaxThreads(16, completionPortThreads));
             
             var countdownEvent = new CountdownEvent(16);
@@ -139,7 +139,8 @@ namespace Demo
             }, countdownEvent, false);
 
             countdownEvent.Wait();
-        }     
+        }
+        
         static void TestBlockedThreadsSmart()
         {
             var pool = new SmartThreadPool<ulong>(minAllowedThreads: 16, maxAllowedWorkingThreads: 16);

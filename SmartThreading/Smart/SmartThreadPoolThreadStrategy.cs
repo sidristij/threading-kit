@@ -3,7 +3,6 @@
     internal class SmartThreadPoolThreadStrategy : IThreadPoolThreadStrategy
     {
         private readonly long HasNoWorkUpperBoundThreshold_µs = TimeConsts.ms_to_µs(250);
-        private readonly long HasNoWorkWrongStatsThreshold_µs = TimeConsts.ms_to_µs(1000);
         private readonly ThreadWrapper _threadWrapper;
         private readonly IThreadPoolStrategy _poolStrategy;
         private long _lastBreakpoint_µs;
@@ -34,8 +33,7 @@
                 _lastBreakpoint_µs = currentBreakpoint_µs;
                 
                 // just ask: maybe need to do this
-                _poolStrategy.RequestForThreadStart(globalQueueCount, jobsDone, range_µs);
-                return ParallelismLevelChange.NoChanges;
+                return _poolStrategy.RequestForThreadStart(globalQueueCount, jobsDone, range_µs);
             }
             
             // special case: has no work items immediately after entering loop
@@ -43,16 +41,13 @@
 
             // has no work: calculate time interval for this state
             // and if interval is too high, allow to stop thread (thread work loop is spinning)
-            if (currentBreakpoint_µs - _lastBreakpoint_µs > HasNoWorkUpperBoundThreshold_µs)
+            if (immediateNothing && (currentBreakpoint_µs - _lastBreakpoint_µs > HasNoWorkUpperBoundThreshold_µs))
             {
-                if (immediateNothing)
-                {
-                    // reset timer: if global strategy disallows us from stopping thread we should spin again
-                    _lastBreakpoint_µs = currentBreakpoint_µs;
-                    
-                    // ask for thread stop from global strategy
-                    return _poolStrategy.RequestForThreadStop(_threadWrapper, globalQueueCount, jobsDone, range_µs);
-                }
+                // reset timer: if global strategy disallows us from stopping thread we should spin again
+                _lastBreakpoint_µs = currentBreakpoint_µs;
+                
+                // ask for thread stop from global strategy
+                return _poolStrategy.RequestForThreadStop(_threadWrapper, globalQueueCount, jobsDone, range_µs);
             }
             
             return ParallelismLevelChange.NoChanges;

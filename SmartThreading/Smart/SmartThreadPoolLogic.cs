@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 
 namespace DevTools.Threading
 {
-    public class SmartThreadPoolLogic : SimplifiedLogicBase
+    public class SmartThreadPoolLogic : ExecutionSegmentLogicBase
     {
         protected override void OnStarted()
         {

@@ -1,12 +1,9 @@
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 
 namespace DevTools.Threading
 {
-    /// <summary>
-    /// Encapsulates thread, which can migrate btw pools with internal logic change via changing current executing delegate.
-    /// Should work in pair with ThreadWrapperBase, which have work for controllable Thread
-    /// </summary>
     internal class ThreadWrapper
     {
         private readonly string _threadName;
@@ -34,15 +31,16 @@ namespace DevTools.Threading
 
         public ExecutionSegmentLogicBase Logic { get; private set; }
 
-        public void SetExecutingUnit(SendOrPostCallback callback)
+        public ThreadState GetThreadStatus() => _thread.ThreadState;
+
+        public void RequestThreadStop()
         {
-            SetExecutingUnit(default, callback);
+            _stoppingRequested = true;
         }
 
-        /// <summary>
-        /// Sets currently running delegate if previous one finished or plans for execution if prev one isn't finished yet 
-        /// </summary>
-        public void SetExecutingUnit(ExecutionSegmentLogicBase logic, SendOrPostCallback callback)
+        public void SetExecutingUnit(Action action) => SetExecutingUnit(default, action);
+
+        public void SetExecutingUnit(ExecutionSegmentLogicBase logic, Action action)
         {
             if (_status == SegmentStatus.Stopped)
             {
@@ -52,7 +50,7 @@ namespace DevTools.Threading
             _nextActions.Enqueue(new QueueItem
             {
                 Logic = logic,
-                Callback = callback
+                Action = action
             });
 
             // if status is still Paused, knock it 
@@ -60,13 +58,6 @@ namespace DevTools.Threading
             {
                 _event.Set();
             }
-        }
-
-        public ThreadState GetThreadStatus() => _thread.ThreadState;
-
-        public void RequestThreadStop()
-        {
-            _stoppingRequested = true;
         }
 
         private void ThreadWork()
@@ -77,7 +68,7 @@ namespace DevTools.Threading
                 {
                     _status = SegmentStatus.Running;
                     Logic = queueItem.Logic;
-                    queueItem.Callback.Invoke(default);
+                    queueItem.Action();
                     Logic = default;
                 }
                 else
@@ -88,7 +79,7 @@ namespace DevTools.Threading
             }
 
             _status = SegmentStatus.Stopped;
-        }
+         }
 
         private string BuildName()
         {
@@ -112,7 +103,7 @@ namespace DevTools.Threading
         private struct QueueItem
         {
             public ExecutionSegmentLogicBase Logic;
-            public SendOrPostCallback Callback;
+            public Action Action;
         }
     }
 }
