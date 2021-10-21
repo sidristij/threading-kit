@@ -61,7 +61,7 @@ namespace DevTools.Threading
                         try
                         {
                             Interlocked.Add(ref LastStartBreakpoint_µs, elapsed_µs);
-                            _threadsManagement.CreateAdditionalExecutionSegments(
+                            _threadsManagement.CreateThreadWrappingQueue(
                                 Math.Max(1, (int)((tailTimeTheoretical_µs / MinIntervalToStartThread_µs - parallelism) / 2)));
                         }
                         finally
@@ -94,7 +94,7 @@ namespace DevTools.Threading
             {
                 if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
-                    if(_threadsManagement.NotifyAboutExecutionSegmentStopping(threadWrappingQueue))
+                    if(_threadsManagement.NotifyThreadWrappingQueueStopping(threadWrappingQueue))
                     {
                         Interlocked.Add(ref LastStopBreakpoint_µs, elapsedFromLastThreadStop_µs);
                         Interlocked.Exchange(ref _locked, 0);

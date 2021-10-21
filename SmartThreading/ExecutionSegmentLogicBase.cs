@@ -20,11 +20,11 @@ namespace DevTools.Threading
             IThreadPool threadPool,
             SmartThreadPoolQueue globalQueue,
             IThreadPoolThreadStrategy strategy,
-            ThreadWrappingQueue executionSegment)
+            ThreadWrappingQueue threadWrappingQueue)
         {
             _threadPool = threadPool;
             _globalQueue = globalQueue;
-            _threadWrappingQueue = executionSegment;
+            _threadWrappingQueue = threadWrappingQueue;
             _strategy = strategy;
             _stoppedEvent = new ManualResetEvent(false);
             _threadWrappingQueue.SetExecutingUnit(this, ThreadWorker);

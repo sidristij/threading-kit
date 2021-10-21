@@ -12,18 +12,18 @@ namespace DevTools.Threading
         where TThreadPoolLogic : ExecutionSegmentLogicBase, new() 
     {
         #region privates
-        private const string ManagementSegmentName = "Management segment";
-        private const string WorkingSegmentName = "Working segment";
+        private const string ManagementThreadName = "Management thread";
+        private const string WorkingThreadName = "Working thread";
         private readonly int MaxAllowedThreads;
         private readonly int MinAllowedThreads;
         
         private readonly SmartThreadPoolQueue _defaultQueue;
         private readonly SmartThreadPoolQueue[] _queues = new SmartThreadPoolQueue[Math.Abs((int)ThreadPoolItemPriority.High - (int)ThreadPoolItemPriority.Low)];
         
-        private readonly ThreadWrappingQueue _managementSegment = new ThreadWrappingQueue(ManagementSegmentName);
-        private readonly HashSet<ThreadWrappingQueue> _threads = new();
-        private readonly ConcurrentQueue<ThreadWrappingQueue> _parkedSegments = new();
-        private readonly HashSet<ThreadWrappingQueue> _frozenSegments = new();
+        private readonly ThreadWrappingQueue _managementQueue = new ThreadWrappingQueue(ManagementThreadName);
+        private readonly HashSet<ThreadWrappingQueue> _activeThreads = new();
+        private readonly HashSet<ThreadWrappingQueue> _frozenThreads = new();
+        private readonly ConcurrentQueue<ThreadWrappingQueue> _parkedThreads = new();
         
         private readonly ManualResetEvent _event = new(false);
         private readonly TThreadPoolStrategy _globalStrategy;
@@ -49,7 +49,7 @@ namespace DevTools.Threading
             _globalStrategy = new TThreadPoolStrategy();
             _globalStrategy.Initialize(this);
             
-            _managementSegment.SetExecutingUnit(() =>
+            _managementQueue.SetExecutingUnit(() =>
             {
                 for (var i = 0; i < MinAllowedThreads; i++)
                 {
@@ -70,7 +70,7 @@ namespace DevTools.Threading
         /// <summary>
         /// Gets active level of parallelism excluding parked or frozen threads
         /// </summary>
-        public int ParallelismLevel => _threads.Count;
+        public int ParallelismLevel => _activeThreads.Count;
         
         /// <summary>
         /// Gets maximum level of parallelism which pool got while its work
@@ -168,11 +168,11 @@ namespace DevTools.Threading
             _defaultQueue.Enqueue(poolWork, false);
         }
         
-        bool IThreadPoolThreadsManagement.CreateAdditionalExecutionSegments(int count)
+        bool IThreadPoolThreadsManagement.CreateThreadWrappingQueue(int count)
         {
             for (var i = 0; i < count; i++)
             {
-                _managementSegment.SetExecutingUnit(() =>
+                _managementQueue.SetExecutingUnit(() =>
                 {
                     CreateAdditionalThreadImpl();
                 });
@@ -180,15 +180,15 @@ namespace DevTools.Threading
             return true;
         }
 
-        bool IThreadPoolThreadsManagement.NotifyAboutExecutionSegmentStopping(ThreadWrappingQueue segment)
+        bool IThreadPoolThreadsManagement.NotifyThreadWrappingQueueStopping(ThreadWrappingQueue queue)
         {
-            lock (_threads)
+            lock (_activeThreads)
             {
-                if (_threads.Count > MinAllowedThreads)
+                if (_activeThreads.Count > MinAllowedThreads)
                 {
-                    _threads.Remove(segment);
-                    _frozenSegments.Remove(segment);
-                    _parkedSegments.Enqueue(segment);
+                    _activeThreads.Remove(queue);
+                    _frozenThreads.Remove(queue);
+                    _parkedThreads.Enqueue(queue);
                     return true;
                 }
             }
@@ -201,29 +201,29 @@ namespace DevTools.Threading
         {
             ThreadWrappingQueue threadWrappingQueue = default;
 
-            if (_parkedSegments.TryDequeue(out var parked))
+            if (_parkedThreads.TryDequeue(out var parked))
             {
-                _threads.Add(parked);
+                _activeThreads.Add(parked);
                 threadWrappingQueue = parked;
             }
             else
             {
-                lock (_threads)
+                lock (_activeThreads)
                 {
-                    if (_threads.Count < MaxAllowedThreads)
+                    if (_activeThreads.Count < MaxAllowedThreads)
                     {
                         var index = Interlocked.Increment(ref _threadsCounter);
-                        threadWrappingQueue = new ThreadWrappingQueue($"{WorkingSegmentName}: #{index}");
-                        _threads.Add(threadWrappingQueue);
+                        threadWrappingQueue = new ThreadWrappingQueue($"{WorkingThreadName}: #{index}");
+                        _activeThreads.Add(threadWrappingQueue);
                     }
                 }
             }
 
             if (threadWrappingQueue != default)
             {
-                var segmentLogic = new TThreadPoolLogic();
+                var lifetimeLogic = new TThreadPoolLogic();
                 var strategy = _globalStrategy.CreateThreadStrategy(threadWrappingQueue);
-                segmentLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrappingQueue);
+                lifetimeLogic.InitializeAndStart(this, _defaultQueue, strategy, threadWrappingQueue);
                 MaxHistoricalParallelismLevel = Math.Max(MaxHistoricalParallelismLevel, ParallelismLevel);
             }
         }
@@ -233,30 +233,30 @@ namespace DevTools.Threading
             // plan check to management thread
             _timer = new Timer(_ =>
             {
-                _managementSegment.SetExecutingUnit(CheckFrozenAndAddThread);
+                _managementQueue.SetExecutingUnit(CheckFrozenAndAddThread);
             }, default, _timerInterval, _timerInterval);
         }
 
         private void CheckFrozenAndAddThread()
         {
             var frozenCounter = 0;
-            if(_threads == null) return;
-            foreach (var segment in _threads.ToArray())
+            if(_activeThreads == null) return;
+            foreach (var wrappingQueue in _activeThreads.ToArray())
             {
-                if (segment.Logic.CheckFrozen())
+                if (wrappingQueue.Logic.CheckFrozen())
                 {
-                    lock (_threads)
+                    lock (_activeThreads)
                     {
                         // - remove frozen from collection 
                         // - add it to frozen list
                         // - save it to active threads list (to be moved into _parked at end of life)
-                        if (_threads.Remove(segment))
+                        if (_activeThreads.Remove(wrappingQueue))
                         {
-                            _frozenSegments.Add(segment);
-                            segment.RequestThreadStop();
-                            segment.SetExecutingUnit(() =>
+                            _frozenThreads.Add(wrappingQueue);
+                            wrappingQueue.RequestThreadStop();
+                            wrappingQueue.SetExecutingUnit(() =>
                             {
-                                _frozenSegments.Remove(segment);
+                                _frozenThreads.Remove(wrappingQueue);
                             });
                             frozenCounter++;
                         }
