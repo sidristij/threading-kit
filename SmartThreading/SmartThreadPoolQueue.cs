@@ -32,7 +32,7 @@ namespace DevTools.Threading
             Interlocked.Increment(ref _globalCounter);
         }
 
-        public bool TryDequeue(ref PoolActionUnit poolActionUnit)
+        public bool TryDequeue(out PoolActionUnit poolActionUnit)
         {
             var localWsq = ThreadLocals.instance;
 

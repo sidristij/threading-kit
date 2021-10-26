@@ -91,12 +91,12 @@ namespace DevTools.Threading
             if (elapsedFromLastThreadStart_µs > MinIntervalBetweenStartAnsStop_µs && 
                 elapsedFromLastThreadStop_µs > MinIntervalBetweenStops_µs)
             {
-                if(Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
+                if (Interlocked.CompareExchange(ref _locked, 1, 0) == 0)
                 {
                     if(_threadsManagement.NotifyThreadWrappingQueueStopping(threadWrappingQueue))
                     {
                         Interlocked.Add(ref LastStopBreakpoint_µs, elapsedFromLastThreadStop_µs);
-                        Interlocked.Exchange(ref _locked, 0);
+                        _locked = 0;
                         return ParallelismLevelChange.Decrease;
                     }
                     _locked = 0;

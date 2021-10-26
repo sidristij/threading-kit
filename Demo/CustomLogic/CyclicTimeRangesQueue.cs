@@ -19,18 +19,6 @@ namespace DevTools.Threading
             _lastIndex = _length - 1;
         }
         
-        public float this[int i]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array[i].Value;
-        }
-
-        public int Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array.Length;
-        }
-        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long GetAvg() => _avg;
 
@@ -47,12 +35,11 @@ namespace DevTools.Threading
                     _array[0].Value = value;
                     return;
                 }
-            }
-
+            }  
             var index = Interlocked.Increment(ref _pos) & _lastIndex;
             Interlocked.Add(ref _sum, value - _array[index].Value);
             _array[index].Value = value;
-            _avg = _sum >> 5;
+            _avg = _sum / 32;
         }
 
         // for array access speedup

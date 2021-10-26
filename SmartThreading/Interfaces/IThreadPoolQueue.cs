@@ -6,6 +6,6 @@ namespace DevTools.Threading
         
         public void Enqueue(PoolActionUnit poolActionUnit, bool preferLocal = false);
         
-        public bool TryDequeue(ref PoolActionUnit single);
+        public bool TryDequeue(out PoolActionUnit single);
     }
 }

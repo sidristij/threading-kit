@@ -13,6 +13,7 @@ namespace Demo
             // TestBlockedThreadsGeneric();
             // TestBlockedThreadsSmart();
             TestMillionOfSuperShortMethods();
+            Console.WriteLine(TestDirect());
         }
         
         #region Test million of super short methods
@@ -21,8 +22,8 @@ namespace Demo
 
         static void TestMillionOfSuperShortMethods()
         {
-            // MyThreadPool pool = default;
-            var pool = new GenericThreadPool(1, Environment.ProcessorCount*2);
+            // GenericThreadPool pool = default;
+            var pool = new GenericThreadPool(4, Environment.ProcessorCount*2);
             pool.InitializedWaitHandle.WaitOne();
 
             // var netPool = false;
@@ -105,9 +106,19 @@ namespace Demo
             return (int)sw.ElapsedMilliseconds;
         }
 
-        private static void OnPoolTask(object state)
+        private static int TestDirect()
         {
-            ((CountdownEvent)state).Signal();
+            var sw = Stopwatch.StartNew();
+            var @event = new CountdownEvent(count);
+            
+            for (var i = 0; i < count; i++)
+            {
+                @event.Signal();
+            }
+
+            sw.Stop();
+            Console.Write(sw.ElapsedMilliseconds);
+            return (int)sw.ElapsedMilliseconds;
         }
 
         #endregion
@@ -129,7 +140,7 @@ namespace Demo
                     badBlockingEvent.WaitOne();
                     await MethodAsync();
                     ((CountdownEvent)state).Signal();
-                }, countdownEvent, false);
+                }, countdownEvent, true);
             }
 
             ;

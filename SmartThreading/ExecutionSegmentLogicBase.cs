@@ -96,9 +96,7 @@ namespace DevTools.Threading
             var tl = ThreadLocals.instance;
             var workCounter = 0;
             var elapsed_µs = -1L;
-            
-            PoolActionUnit actionUnitItem = default;
-          
+
             //
             // Save the start time of internal loop
             var start_in_µs = TimeUtils.GetTimestamp_µs();
@@ -107,7 +105,7 @@ namespace DevTools.Threading
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
-                if (workQueue.TryDequeue(ref actionUnitItem))
+                if (workQueue.TryDequeue(out var actionUnitItem))
                 {
                     hasWork = true;
                     OnRun(actionUnitItem);

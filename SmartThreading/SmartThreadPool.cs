@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 
 namespace DevTools.Threading
@@ -172,10 +171,7 @@ namespace DevTools.Threading
         {
             for (var i = 0; i < count; i++)
             {
-                _managementQueue.SetExecutingUnit(() =>
-                {
-                    CreateAdditionalThreadImpl();
-                });
+                _managementQueue.SetExecutingUnit(CreateAdditionalThreadImpl);
             }
             return true;
         }
