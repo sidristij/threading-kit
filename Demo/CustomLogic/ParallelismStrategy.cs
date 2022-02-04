@@ -5,9 +5,9 @@ namespace DevTools.Threading
 {
     public class ParallelismStrategy : IParallelismStrategy
     {
-        private readonly long MinIntervalToStartThread_µs = TimeUtils.ms_to_µs(300);
+        private readonly long MinIntervalToStartThread_µs = TimeUtils.ms_to_µs(100);
         private readonly long MinIntervalBetweenStops_µs =  TimeUtils.ms_to_µs(500);
-        private readonly long MinIntervalBetweenStarts_µs = TimeUtils.ms_to_µs(200);
+        private readonly long MinIntervalBetweenStarts_µs = TimeUtils.ms_to_µs(100);
         private readonly long MinIntervalBetweenStartAnsStop_µs = TimeUtils.ms_to_µs(10_000);
 
         private readonly CyclicTimeRangesQueue _valuableIntervals = new();

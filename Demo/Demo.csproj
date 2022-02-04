@@ -2,12 +2,21 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <TargetFramework>net5.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\SmartThreading\DevTools.Threading.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="Program.RegularTest.cs">
+        <DependentUpon>Program.cs</DependentUpon>
+      </Compile>
+      <Compile Update="Program.Blocking.cs">
+        <DependentUpon>Program.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>
