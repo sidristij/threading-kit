@@ -18,7 +18,7 @@ namespace Demo
             // TestBlockedThreadsSmart();
             // TestMillionOfSuperShortMethods();
             // Console.WriteLine(TestDirect());
-            DeepPerformanceTest(true, new GenericThreadPool(1, Environment.ProcessorCount*2));
+            DeepPerformanceTest(new GenericThreadPool(1, Environment.ProcessorCount*2));
         }
 
         static ConcurrentQueue<Record> queue = new ();
@@ -26,7 +26,7 @@ namespace Demo
         static long[] lastValues = new long[100];
         static CountdownEvent cntdwn;
 
-        static unsafe void DeepPerformanceTest(bool defThreadPool, GenericThreadPool pool)
+        static unsafe void DeepPerformanceTest(GenericThreadPool pool)
         {
             rdtsc = CreateRdtscMethod();
 	
@@ -38,9 +38,9 @@ namespace Demo
             };
 	
             Console.WriteLine("| # cycles | TP, ticks | Body, Ticks | Cost, ticks | TP, %% | Body, %% |");
-            var sw = Stopwatch.StartNew();
             for (int j = 0; j < cycles.Length; j++)
             {
+                var sw = Stopwatch.StartNew();
                 cntdwn = new CountdownEvent(500_000);
                 
                 for (int i = 0; i < 500_000; i++)
@@ -51,14 +51,24 @@ namespace Demo
                 
                 cntdwn.Wait();
 
-                var lst = queue.OrderBy(x => x.Ticks).Skip(2000).Take(496000).ToList();
-                var tp = lst.Average(x => x.Ticks);
-                var bd = lst.Average(x => x.Ticks2);
+                var lst = queue.OrderBy(x => x.PoolTicks).Skip(2000).Take(496000).ToList();
+                var tp = lst.Average(x => x.PoolTicks);
+                var bd = lst.Average(x => x.BodyTicks);
                 var wait_ticks = sw.ElapsedMilliseconds;
-                
-                Console.WriteLine($"| {cycles[j]} | {(int)tp} | {(int)bd} | {((tp+bd)/cycles[j]):F2} | {(100.0 / ((tp + bd)) * tp):F2} | {(100.0 / ((double)(tp + bd)) * bd):F2} | {wait_ticks}");
-                Console.WriteLine(pool.MaxHistoricalParallelismLevel);		
-                // Console.WriteLine(ThreadPool.ThreadCount);		
+
+                var step_price = ((tp + bd) / cycles[j]);
+                var pool_percent = (100.0 / ((tp + bd)) * tp);
+                var body_percent = (100.0 / ((tp + bd)) * bd);
+                var parallelism =
+                    pool.MaxHistoricalParallelismLevel;
+                    // ThreadPool.ThreadCount;
+                Console.WriteLine($"| {cycles[j]} | {(int)tp} | {(int)bd} | {step_price:F2} |" +
+                                  $" {pool_percent:F2} | {body_percent:F2} |" +
+                                  $" {wait_ticks} |" +
+                                  $" {parallelism} |" +
+                                  $" {parallelism * wait_ticks * pool_percent / 1000 :F2} |" +
+                                  $" {parallelism * wait_ticks * body_percent / 1000 :F2} |"
+                                  );
 
                 queue.Clear();
             }
@@ -82,20 +92,17 @@ namespace Demo
 
             if(body > 0 && (rd_st - last) > 0)
                 queue.Enqueue(new Record {
-                    Ticks = rd_st - last,
-                    Ticks2 = body,
-                    TID = Environment.CurrentManagedThreadId
+                    PoolTicks = rd_st - last,
+                    BodyTicks = body
                 });
             cntdwn.Signal();
 
             lastValues[tid] = rdtsc();
         }
 
-        
         struct Record {
-            public long Ticks;
-            public int TID;
-            public long Ticks2;
+            public long PoolTicks;
+            public long BodyTicks;
         }
 
         static unsafe delegate*<long> CreateRdtscMethod()
