@@ -85,61 +85,61 @@ namespace DevTools.Threading
         /// <summary>
         /// Initialize with regular delegate 
         /// </summary>
-        public void Enqueue(PoolAction unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolAction unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
         /// Initialize with regular function pointer 
         /// </summary>
-        public unsafe void Enqueue(delegate*<object, void> unit, object outer = default, bool preferLocal = true)
+        public unsafe void Enqueue(delegate*<object, void> unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
         /// Initialize with parametrized delegate 
         /// </summary>
-        public void Enqueue(PoolAction<TPoolParameter> unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolAction<TPoolParameter> unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
         /// Initialize with parametrized function pointer 
         /// </summary>
-        public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true)
+        public unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
         /// Initialize with non-parametrized async delegate 
         /// </summary>
-        public void Enqueue(PoolActionAsync unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolActionAsync unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
         /// Initialize with parametrized async delegate 
         /// </summary>
-        public void Enqueue(PoolActionAsync<TPoolParameter> unit, object outer = default, bool preferLocal = true)
+        public void Enqueue(PoolActionAsync<TPoolParameter> unit, object outer = default)
         {
             PoolActionUnit poolActionUnit = default;
             poolActionUnit.Init(unit, outer);
-            _defaultQueue.Enqueue(poolActionUnit, preferLocal);
+            _defaultQueue.Enqueue(ref poolActionUnit);
         }
         
         /// <summary>
@@ -164,7 +164,7 @@ namespace DevTools.Threading
 
             var poolWork = default(PoolActionUnit);
             poolWork.Init(ExecutionUnitCallback, wfsoState);
-            _defaultQueue.Enqueue(poolWork, false);
+            _defaultQueue.Enqueue(ref poolWork);
         }
         
         bool IThreadPoolThreadsManagement.CreateThreadWrappingQueue(int count)

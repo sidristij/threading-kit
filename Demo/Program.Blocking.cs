@@ -49,13 +49,13 @@ namespace Demo
                     badBlockingEvent.WaitOne();
                     await MethodAsync();
                     ((CountdownEvent)state).Signal();
-                }, countdownEvent, false);
+                }, countdownEvent);
             }
 
             pool.Enqueue(async (p, state) =>
             {
                 badBlockingEvent.Set();
-            }, countdownEvent, false);
+            }, countdownEvent);
 
             countdownEvent.Wait();
         }

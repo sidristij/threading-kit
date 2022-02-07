@@ -11,17 +11,17 @@ namespace DevTools.Threading
         
         public int MaxHistoricalParallelismLevel { get; }
         
-        void Enqueue(PoolAction unit, object outer = default, bool preferLocal = true);
+        void Enqueue(PoolAction unit, object outer = default);
         
-        unsafe void Enqueue(delegate*<object, void> unit, object outer = default, bool preferLocal = true);
+        unsafe void Enqueue(delegate*<object, void> unit, object outer = default);
 
         void RegisterWaitForSingleObject(WaitHandle handle, PoolAction unit, object outer = default, TimeSpan timeout = default);
     }
 
     public interface IThreadPool<TPoolParameter> : IThreadPool
     {
-        void Enqueue(PoolAction<TPoolParameter> unit, object outer = null, bool preferLocal = true);
+        void Enqueue(PoolAction<TPoolParameter> unit, object outer = null);
         
-        unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default, bool preferLocal = true);
+        unsafe void Enqueue(delegate*<TPoolParameter, object, void> unit, object outer = default);
     }
 }

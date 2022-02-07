@@ -15,6 +15,7 @@ namespace DevTools.Threading
 
         private readonly long DispatchQuantum_µs = TimeUtils.ms_to_µs(50);
         private readonly long MaxTimeForDelegateRun_µs = TimeUtils.ms_to_µs(1500);
+        private readonly int TooFastThreshold = 60_000;
         
         internal void InitializeAndStart(
             IThreadPool threadPool,
@@ -78,9 +79,6 @@ namespace DevTools.Threading
                 
                 // Make stopping logic
                 OnStopping();
-                
-                // cleanup thread locals
-                ThreadLocals.instance = default;
             }
             finally
             {
@@ -92,8 +90,6 @@ namespace DevTools.Threading
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private void Dispatch(ref bool hasWork, ref bool askedToFinishThread)
         {
-            var workQueue = _globalQueue;
-            var tl = ThreadLocals.instance;
             var workCounter = 0;
             var elapsed_µs = -1L;
 
@@ -105,9 +101,8 @@ namespace DevTools.Threading
             // Loop until our quantum expires or there is no work.
             while (askedToFinishThread == false)
             {
-                if (workQueue.TryDequeue(out var actionUnitItem))
+                if (_globalQueue.TryDequeue(out var actionUnitItem))
                 {
-                    hasWork = true;
                     OnRun(actionUnitItem);
                     workCounter++;
                 }
@@ -122,7 +117,19 @@ namespace DevTools.Threading
                 elapsed_µs = TimeUtils.GetTimestamp_µs() - start_in_µs;
                 if (elapsed_µs > DispatchQuantum_µs)
                 {
-                    break;
+                    // if speed is ok, break loop to change parallelism level
+                    if (workCounter < TooFastThreshold)
+                    {
+                        if (workCounter > 0)
+                        {
+                            hasWork = true;
+                        }
+                        break;
+                    }
+
+                    // if too fast, reset metrics, continue loop
+                    start_in_µs = TimeUtils.GetTimestamp_µs();
+                    workCounter = 0;
                 }
             }
             
@@ -130,22 +137,12 @@ namespace DevTools.Threading
             // Request for current thread stop or start additional thread
             if (_strategy.RequestForParallelismLevelChanged(_globalQueue.GlobalCount, workCounter, elapsed_µs) == ParallelismLevelChange.Decrease)
             {
-                tl.TransferLocalWork();
                 askedToFinishThread = true;
             }
         }
         
         private void MakeBasicInitialization()
         {
-            // Assign access to my shared queue of local items
-            var tl = ThreadLocals.instance;
-            if (tl == null)
-            {
-                tl = new ThreadLocals(
-                    _globalQueue, ((IThreadPoolInternals)_globalQueue).QueueList);
-                ThreadLocals.instance = tl;
-            }
-
             // Set current sync context
             SynchronizationContext.SetSynchronizationContext(_threadPool.SynchronizationContext);
         }

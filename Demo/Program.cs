@@ -14,11 +14,12 @@ namespace Demo
         static void Main()
         {
             Console.WriteLine($".NET: {Environment.Version}");
+            Console.ReadKey();
             // TestBlockedThreadsGeneric();
             // TestBlockedThreadsSmart();
             // TestMillionOfSuperShortMethods();
             // Console.WriteLine(TestDirect());
-            DeepPerformanceTest(new GenericThreadPool(1, Environment.ProcessorCount*2));
+            DeepPerformanceTest(new GenericThreadPool(1, Environment.ProcessorCount));
         }
 
         static ConcurrentQueue<Record> queue = new ();
@@ -32,8 +33,16 @@ namespace Demo
 	
             var cycles = new int[]
             {
-                0, 5, 11, 51, 101, 501, 1001, 5001,
+                0, 5, 11, 51, 101, 
+                201, 301, 401, 
+                501, 
+                601, 701, 801, 901, 
+                1001,
+                2001, 3001, 4001, 
+                5001, 
+                6001, 7001, 8001, 9001,
                 10001,
+                20001, 30001, 40001,
                 100001
             };
 	
@@ -45,16 +54,26 @@ namespace Demo
                 
                 for (int i = 0; i < 500_000; i++)
                 {
-                        // ThreadPool.QueueUserWorkItem(TraceWork, cycles[j]);
-                        pool.Enqueue(TraceWork, cycles[j], false);
+                        ThreadPool.QueueUserWorkItem(TraceWork, cycles[j]);
+                        // pool.Enqueue(TraceWork, cycles[j]);
+                        // TraceWork(cycles[j]);
                 }
                 
                 cntdwn.Wait();
 
+                var wait_ms = sw.ElapsedMilliseconds;
+
                 var lst = queue.OrderBy(x => x.PoolTicks).Skip(2000).Take(496000).ToList();
                 var tp = lst.Average(x => x.PoolTicks);
                 var bd = lst.Average(x => x.BodyTicks);
-                var wait_ticks = sw.ElapsedMilliseconds;
+
+                var max_tp = lst.Max(x => x.PoolTicks);
+                var distribution_tp = new double[(int)(max_tp/50)+1];
+                for (int i = 0, len = lst.Count; i < len; i++)
+                {
+                    var val1 = (int)(lst[i].PoolTicks / 50);
+                    distribution_tp[val1]++;
+                }
 
                 var step_price = ((tp + bd) / cycles[j]);
                 var pool_percent = (100.0 / ((tp + bd)) * tp);
@@ -62,13 +81,24 @@ namespace Demo
                 var parallelism =
                     pool.MaxHistoricalParallelismLevel;
                     // ThreadPool.ThreadCount;
-                Console.WriteLine($"| {cycles[j]} | {(int)tp} | {(int)bd} | {step_price:F2} |" +
-                                  $" {pool_percent:F2} | {body_percent:F2} |" +
-                                  $" {wait_ticks} |" +
-                                  $" {parallelism} |" +
-                                  $" {parallelism * wait_ticks * pool_percent / 1000 :F2} |" +
-                                  $" {parallelism * wait_ticks * body_percent / 1000 :F2} |"
-                                  );
+                    
+                // Console.WriteLine($"| {cycles[j]} | {(int)tp} | {(int)bd} | {step_price:F2} |" +
+                //                   $" {pool_percent:F2} | {body_percent:F2} |" +
+                //                   $" {wait_ms} |" +
+                //                   $" {parallelism} |" +
+                //                   $" {parallelism * wait_ms * pool_percent / 100 :F2} |" +
+                //                   $" {parallelism * wait_ms * body_percent / 100 :F2} |"
+                //                   );
+
+                Console.WriteLine("========================");
+                Console.WriteLine(cycles[j]);
+                Console.WriteLine("=====");
+                
+                for (var index = 0; index < distribution_tp.Length; index++)
+                {
+                    var d1 = distribution_tp[index];
+                    Console.WriteLine($"{d1};{index*50}");
+                }
 
                 queue.Clear();
             }

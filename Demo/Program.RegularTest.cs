@@ -82,7 +82,7 @@ namespace Demo
 
             for (var i = 0; i < count; i++)
             {
-                pool.Enqueue((x) => { ((CountdownEvent)x).Signal(); }, @event, false);
+                pool.Enqueue((x) => { ((CountdownEvent)x).Signal(); }, @event);
             }
 
             @event.Wait();
